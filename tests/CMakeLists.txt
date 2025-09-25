@@ -4,7 +4,8 @@ include(FetchContent)
 FetchContent_Declare(
     googletest
     URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        DOWNLOAD_EXTRACT_TIMESTAMP
+        TRUE
 )
 FetchContent_MakeAvailable(googletest)
 
@@ -34,23 +35,53 @@ file(
     TESTED_SOURCES
     "${PROJECT_SOURCE_DIR}/src/*.cpp"
 )
+list(
+    FILTER
+    TESTED_SOURCES
+    EXCLUDE
+    REGEX
+    ".*/main\\.cpp$"
+)
+list(
+    LENGTH
+    TESTED_SOURCES
+    NUM_TESTED
+)
 
 file(
     GLOB_RECURSE
     TEST_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.test.cpp"
 )
+list(
+    LENGTH
+    TEST_SOURCES
+    NUM_TESTS
+)
+if(_NUM_TESTS
+   EQUAL
+   0
+)
+    message(STATUS "No test sources found in ${CMAKE_CURRENT_SOURCE_DIR}/src; skipping test target generation.")
+    return()
+endif()
 
-# Compile common sources to object files
-add_library(
-    common_objects
-    OBJECT
-    ${TESTED_SOURCES}
+if(_NUM_TESTED
+   GREATER
+   0
 )
-target_link_libraries(
-    common_objects
-    ${LIBRARIES}
-)
+    # Compile common sources to object files
+    add_library(
+        common_objects
+        OBJECT
+        ${TESTED_SOURCES}
+    )
+    target_link_libraries(common_objects PRIVATE ${LIBRARIES})
+    set(COMMON_OBJECTS $<TARGET_OBJECTS:common_objects>)
+else()
+    message(STATUS "No implementation sources to compile into common_objects.")
+endif()
+
 link_libraries(
     gtest
     gtest_main
@@ -59,7 +90,7 @@ link_libraries(
 
 add_executable(
     test-all
-    $<TARGET_OBJECTS:common_objects>
+    ${COMMON_OBJECTS}
     ${TEST_SOURCES}
 )
 

@@ -26,17 +26,17 @@ add_executable(${EXEC_NAME} ${SOURCE_FILES})
 target_include_directories(
     ${EXEC_NAME}
     PRIVATE ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_BINARY_DIR}/include
+            ${PROJECT_BINARY_DIR}/include
 )
 
 target_compile_options(
     ${EXEC_NAME}
     PUBLIC -O3
-    -Wall
-    -Woverloaded-virtual
-    -Wno-unused-function
-    -Wmissing-declarations
-    -Werror
+           -Wall
+           -Woverloaded-virtual
+           -Wno-unused-function
+           -Wmissing-declarations
+           -Werror
 )
 
 # Option to build tests

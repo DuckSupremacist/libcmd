@@ -91,6 +91,7 @@ repos:
                   -Iinclude \
                   -Itests/include \
                   -Ibuild/include \
+                  -Ibuild/_deps/googletest-src/googletest/include \
 
               done
             fi
