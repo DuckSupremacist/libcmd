@@ -94,21 +94,26 @@ static void printVector(const std::vector<std::uint8_t>& vec) {
 int main() {
     // reception
     const std::vector<std::uint8_t> received_data = {0x01, 0x05};
-    const SpecificReceivedMessage recv_msg({0x01, 0x05});
-
-    std::cout << "Received Message:" << std::endl
-              << " - cmd_id: " << static_cast<int>(recv_msg.content().cmd_id) << std::endl
-              << " - arg: " << static_cast<int>(recv_msg.content().arg) << std::endl;
-    std::cout << "Serialized Received Message:\n 0x";
-    printVector(recv_msg.serialize());
+    try {
+        const SpecificReceivedMessage recv_msg({0x01, 0x05});
+        std::cout << "Received Message:" << std::endl
+                  << " - cmd_id: " << static_cast<int>(recv_msg.content().cmd_id) << std::endl
+                  << " - arg: " << static_cast<int>(recv_msg.content().arg) << std::endl;
+        std::cout << "Serialized Received Message:\n 0x";
+        printVector(recv_msg.serialize());
+    }
+    catch (const std::runtime_error& e) {
+        std::cerr << "Error parsing received message: " << e.what() << std::endl;
+        return 1;
+    }
 
     // sending
-    constexpr SpecificSentMessageFormat content = {
+    constexpr SpecificSentMessageFormat CONTENT = {
         .cmd_id = 0x01,
         .status = 0x02,
         .value = 0xDEADBEEF,
     };
-    const SpecificSentMessage sent_msg(content);
+    const SpecificSentMessage sent_msg(CONTENT);
 
     std::cout << "Sent Message:" << std::endl
               << " - cmd_id: " << static_cast<int>(sent_msg.content().cmd_id) << std::endl
@@ -118,20 +123,25 @@ int main() {
     printVector(sent_msg.serialize());
 
     // command
-    const SpecificCommand cmd(received_data);
-    std::cout << "Command Message:" << std::endl
-              << " - cmd_id: " << static_cast<int>(cmd.content().cmd_id) << std::endl
-              << " - arg: " << static_cast<int>(cmd.content().arg) << std::endl;
-    std::cout << "Serialized Command Message:\n 0x";
-    printVector(cmd.serialize());
+    try {
+        const SpecificCommand cmd(received_data);
+        std::cout << "Command Message:" << std::endl
+                  << " - cmd_id: " << static_cast<int>(cmd.content().cmd_id) << std::endl
+                  << " - arg: " << static_cast<int>(cmd.content().arg) << std::endl;
+        std::cout << "Serialized Command Message:\n 0x";
+        printVector(cmd.serialize());
 
-    const SpecificCommand::output_message_t response = cmd.execute();
-    std::cout << "Command Response Message:" << std::endl
-              << " - cmd_id: " << static_cast<int>(response.content().cmd_id) << std::endl
-              << " - status: " << static_cast<int>(response.content().status) << std::endl
-              << " - value: " << response.content().value << std::endl;
-    std::cout << "Serialized Command Response Message:\n 0x";
-    printVector(response.serialize());
-
+        const SpecificCommand::output_message_t response = cmd.execute();
+        std::cout << "Command Response Message:" << std::endl
+                  << " - cmd_id: " << static_cast<int>(response.content().cmd_id) << std::endl
+                  << " - status: " << static_cast<int>(response.content().status) << std::endl
+                  << " - value: " << response.content().value << std::endl;
+        std::cout << "Serialized Command Response Message:\n 0x";
+        printVector(response.serialize());
+    }
+    catch (const std::runtime_error& e) {
+        std::cerr << "Error parsing command message: " << e.what() << std::endl;
+        return 1;
+    }
     return 0;
 }
