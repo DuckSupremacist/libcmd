@@ -15,6 +15,7 @@
 template <typename MessageFormat> class Message
 {
     MessageFormat _content;
+    // static_assert(std::is_trivially_copyable_v<MessageFormat>);
 
   protected:
     /** @brief Constructs a Message from structured content
@@ -71,8 +72,7 @@ template <typename ReceivedMessageFormat> class ReceivedMessage : public Message
      * @param content Raw byte content of the received message
      * @throws std::runtime_error if content size is invalid
      **/
-    explicit ReceivedMessage(const std::vector<std::uint8_t>& content)
-        : Message<ReceivedMessageFormat>(std::move(content)) {}
+    explicit ReceivedMessage(const std::vector<std::uint8_t>& content) : Message<ReceivedMessageFormat>(content) {}
 };
 
 /**

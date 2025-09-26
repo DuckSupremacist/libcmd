@@ -31,7 +31,8 @@ Checks: >
   hicpp-multiway-paths-covered,
   hicpp-exception-baseclass,
 
-  llvm-include-order,
+  -llvm-include-order, # Conflicts with clang-format
+  llvm-header-guard,
   llvm-else-after-return,
 
   misc-unconventional-assign-operator,

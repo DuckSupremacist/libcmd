@@ -22,8 +22,7 @@ class Command : public ReceivedMessage<CommandMessageFormat>
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
      **/
-    explicit Command(const std::vector<std::uint8_t>& content)
-        : ReceivedMessage<CommandMessageFormat>(std::move(content)) {}
+    explicit Command(const std::vector<std::uint8_t>& content) : ReceivedMessage<CommandMessageFormat>(content) {}
 
     /**
      * @brief Executes the command associated with this message

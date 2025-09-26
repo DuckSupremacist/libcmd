@@ -19,17 +19,9 @@ struct SpecificReceivedMessageFormat
 } __attribute__((packed));
 
 /**
- * @brief Class representing a specific received message for example purposes
+ * @brief Type alias for a specific received message for example purposes
  */
-struct SpecificReceivedMessage final : ReceivedMessage<SpecificReceivedMessageFormat>
-{
-    /** @brief Constructs a SpecificReceivedMessage from raw byte input
-     *
-     * @param content Raw byte content of the received message
-     * @throws std::runtime_error if content size is invalid
-     **/
-    explicit SpecificReceivedMessage(const std::vector<std::uint8_t>& content) : ReceivedMessage(content) {}
-};
+using SpecificReceivedMessage = ReceivedMessage<SpecificReceivedMessageFormat>;
 
 /**
  * @brief Structure representing the format of a specific sent message
@@ -42,16 +34,9 @@ struct SpecificSentMessageFormat
 } __attribute__((packed));
 
 /**
- * @brief Class representing a specific sent message for example purposes
+ * @brief Type alias for a specific sent message for example purposes
  */
-struct SpecificSentMessage final : SentMessage<SpecificSentMessageFormat>
-{
-    /** @brief Constructs a SpecificSentMessage from structured content
-     *
-     * @param content Structured content of the sent message
-     **/
-    explicit SpecificSentMessage(const SpecificSentMessageFormat& content) : SentMessage(content) {}
-};
+using SpecificSentMessage = SentMessage<SpecificSentMessageFormat>;
 
 /**
  * @brief Class representing a specific command that can be executed
