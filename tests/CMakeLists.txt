@@ -58,7 +58,7 @@ list(
     TEST_SOURCES
     NUM_TESTS
 )
-if(_NUM_TESTS
+if(NUM_TESTS
    EQUAL
    0
 )
