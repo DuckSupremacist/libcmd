@@ -82,7 +82,7 @@ template <typename ReceivedMessageFormat> class ReceivedMessage : public Message
  *
  * @tparam SentMessageFormat The format of the sent message
  */
-template <typename SentMessageFormat> class SentMessage : public Message<SentMessageFormat>
+template <typename SentMessageFormat> class SentMessage final : public Message<SentMessageFormat>
 {
   public:
     /** @brief Constructs a SentMessage from structured content
