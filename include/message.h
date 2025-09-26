@@ -14,10 +14,10 @@
  */
 template <typename MessageFormat> class Message
 {
-    MessageFormat _content;
+  protected:
+    MessageFormat _content; ///< Structured content of the message
     // static_assert(std::is_trivially_copyable_v<MessageFormat>);
 
-  protected:
     /** @brief Constructs a Message from structured content
      *
      * @param content Structured content of the message
