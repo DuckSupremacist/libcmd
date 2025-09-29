@@ -21,33 +21,9 @@ repos:
           '
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v20.1.0
+    rev: v21.1.2
     hooks:
       - id: clang-format
-        args:
-          - -i
-          - "-style={
-              BasedOnStyle: LLVM,
-              ColumnLimit: 120,
-              IndentWidth: 4,
-              AlignAfterOpenBracket: BlockIndent,
-              BreakBeforeBraces: Custom,
-              BraceWrapping:
-              {
-                AfterClass: true,
-                AfterEnum: true,
-                AfterNamespace: true,
-                AfterStruct: true,
-                AfterUnion: true,
-                BeforeCatch: true,
-                BeforeElse: true,
-                IndentBraces: false,
-                SplitEmptyFunction: false,
-                SplitEmptyRecord: false,
-              },
-              PointerAlignment: Left,
-              BinPackParameters: false
-            }"
 
   - repo: local
     hooks:

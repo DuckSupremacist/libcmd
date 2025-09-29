@@ -1,24 +1,27 @@
 #pragma once
+#include "concept_helpers.h"
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
 #include <vector>
 
-/**
- * @brief Concept to ensure a type is an unsigned byte (uint8_t)
- * This concept checks if a given type U is an integral type,
- * is unsigned, and has a size of 1 byte.
- * @tparam T The type to be checked
- */
-template <class T>
-concept UnsignedByte = std::is_integral_v<T> && std::is_unsigned_v<T> && sizeof(T) == 1;
+/* ―――――――――――――――― Concepts ―――――――――――――――― */
 
 /**
- * @brief Concept to ensure a message format has a static ID and that `id` is the first member.
+ * @brief Helper concept to ensure a type is an unsigned byte (uint8_t)
+ * Usage: UnsignedByte<T>
+ * @tparam T The type to be checked
+ */
+template <class T> concept UnsignedByte = std::is_integral_v<T> && std::is_unsigned_v<T> && sizeof(T) == 1;
+
+/**
+ * @brief Concept to ensure a message format has a static ID and that `id` is
+ * the first member.
  *
  * Requirements:
  *  - `T::ID` is a constant expression, representable in uint8_t.
- *  - The type of `T::ID` is a 1-byte unsigned integral (or use the enum-friendly variant below).
+ *  - The type of `T::ID` is a 1-byte unsigned integral (or use the
+ * enum-friendly variant below).
  *  - `T` has a non-static data member `id` that is an unsigned 1-byte integral.
  *  - `id` is an lvalue (rules out bit-fields/proxies).
  *  - `T` is standard-layout and `offsetof(T, id) == 0`.
@@ -26,22 +29,18 @@ concept UnsignedByte = std::is_integral_v<T> && std::is_unsigned_v<T> && sizeof(
  *
  * @tparam T The message format type to be checked.
  */
-template <typename T>
-concept MessageFormatWithIdFirst =
-    // must expose a `static constexpr uint8_t ID`
-    requires {
+template <typename T> concept MessageFormatT =
+    requires { // must expose a `static constexpr uint8_t ID`
         requires UnsignedByte<decltype(T::ID)>;
         std::integral_constant<std::uint8_t, T::ID>{};
     } &&
-    // must have a non-static member `uint8_t id`
-    requires(T& x) {
+    requires(T& x) { // must have a non-static member `uint8_t id`
         requires UnsignedByte<std::remove_cvref_t<decltype(x.id)>>;
-        requires std::is_lvalue_reference_v<decltype((x.id))>; // prevent
-    } &&
-    // layout precondition for using offsetof
-    std::is_standard_layout_v<T> &&
-    // id must be the very first member
-    requires { requires offsetof(T, id) == 0; };
+        requires std::is_lvalue_reference_v<decltype((x.id))>;
+    } && std::is_standard_layout_v<T> && // layout precondition for using offsetof
+    (offsetof(T, id) == 0);              // id must be the very first member
+
+/* ―――――――――――――――― Classes ―――――――――――――――― */
 
 /**
  * @brief Abstract base class representing a generic message
@@ -51,7 +50,7 @@ concept MessageFormatWithIdFirst =
  *
  * @tparam MessageFormat The format of the message content
  */
-template <MessageFormatWithIdFirst MessageFormat> class Message
+template <MessageFormatT MessageFormat> class Message
 {
   protected:
     MessageFormat _content; ///< Structured content of the message
@@ -83,7 +82,8 @@ template <MessageFormatWithIdFirst MessageFormat> class Message
 
     /** @brief Serializes the message content into a byte vector
      *
-     * @return std::vector<std::uint8_t> Serialized byte vector of the message content
+     * @return std::vector<std::uint8_t> Serialized byte vector of the message
+     *content
      **/
     [[nodiscard]] virtual std::vector<std::uint8_t> serialize() const {
         return {
@@ -102,11 +102,12 @@ template <MessageFormatWithIdFirst MessageFormat> class Message
 /**
  * @brief Class representing a message that has been received
  *
- * This class inherits from Message and is used to represent messages that are received.
+ * This class inherits from Message and is used to represent messages that are
+ * received.
  *
  * @tparam ReceivedMessageFormat The format of the received message
  */
-template <MessageFormatWithIdFirst ReceivedMessageFormat> class ReceivedMessage : public Message<ReceivedMessageFormat>
+template <MessageFormatT ReceivedMessageFormat> class ReceivedMessage : public Message<ReceivedMessageFormat>
 {
   public:
     /** @brief Constructs a ReceivedMessage from raw byte input
@@ -120,11 +121,12 @@ template <MessageFormatWithIdFirst ReceivedMessageFormat> class ReceivedMessage 
 /**
  * @brief Class representing a message that has been sent
  *
- * This class inherits from Message and is used to represent messages that are sent.
+ * This class inherits from Message and is used to represent messages that are
+ * sent.
  *
  * @tparam SentMessageFormat The format of the sent message
  */
-template <MessageFormatWithIdFirst SentMessageFormat> class SentMessage final : public Message<SentMessageFormat>
+template <MessageFormatT SentMessageFormat> class SentMessage final : public Message<SentMessageFormat>
 {
   public:
     /** @brief Constructs a SentMessage from structured content

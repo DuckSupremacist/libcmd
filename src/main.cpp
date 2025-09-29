@@ -56,7 +56,8 @@ struct SpecificCommand final : Command<SpecificReceivedMessageFormat, SpecificSe
     /**
      * @brief Executes the command associated with this message
      *
-     * @return SentMessage<SpecificSentMessageFormat> The response message after executing the command
+     * @return SentMessage<SpecificSentMessageFormat> The response message after
+     * executing the command
      */
     [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
         // Dummy implementation

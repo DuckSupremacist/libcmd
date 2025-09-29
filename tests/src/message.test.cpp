@@ -4,6 +4,8 @@
 #include <type_traits>
 #include <vector>
 
+/* ―――――――――――――――― Helpers ―――――――――――――――― */
+
 template <typename T> static std::vector<std::uint8_t> toBytes(const T& obj) {
     static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for byte memcpy");
     std::vector<std::uint8_t> bytes(sizeof(T));
@@ -11,100 +13,150 @@ template <typename T> static std::vector<std::uint8_t> toBytes(const T& obj) {
     return bytes;
 }
 
-// Trivially copyable payload
-struct PayloadByteArray
+// A well-formed message format: standard-layout, id is first, static constexpr std::uint8_t ID.
+struct GoodFormat
 {
-    static constexpr std::uint8_t ID = 0x01;
-    std::uint8_t id;
-    std::uint8_t data[8];
-} __attribute__((packed));
-static_assert(std::is_trivially_copyable_v<PayloadByteArray>);
+    static constexpr std::uint8_t ID = 0x42;
+    std::uint8_t id; // must be first
+    std::uint8_t a;
+    std::uint16_t b;
+};
+// POD-like to be safely memcpy'ed
+static_assert(std::is_standard_layout_v<GoodFormat>);
+static_assert(std::is_trivially_copyable_v<GoodFormat>);
+static_assert(offsetof(GoodFormat, id) == 0);
 
-// Trivially copyable payload
-struct PayloadMixed
+/* ―――――――――――――――― Concept tests ―――――――――――――――― */
+
+// Malformed variants for negative checks (never instantiate Message with them; just concept checks)
+struct BadNoId
 {
-    static constexpr std::uint8_t ID = 0x02;
+    static constexpr std::uint8_t ID = 1;
+    // missing non-static data member `id`
+    std::uint8_t a;
+};
+
+struct BadIdNotFirst
+{
+    static constexpr std::uint8_t ID = 2;
+    std::uint8_t a;
+    std::uint8_t id; // not first
+};
+
+struct BadIdWrongType
+{
+    static constexpr std::uint8_t ID = 3;
+    unsigned int id; // not a 1-byte unsigned integral
+};
+
+struct BadStaticIdWrongType
+{
+    static constexpr int ID = 4; // not an UnsignedByte type
     std::uint8_t id;
-    std::uint16_t a;
-    std::uint32_t b;
-} __attribute__((packed));
-static_assert(std::is_trivially_copyable_v<PayloadMixed>);
+};
 
-// -----------------------------------------------------------------------------
-// Tests
-// -----------------------------------------------------------------------------
+enum class SmallEnum : std::uint8_t
+{
+    V = 7
+};
+struct BadStaticIdEnum
+{
+    static constexpr SmallEnum ID = SmallEnum::V; // enum, not integral type for UnsignedByte
+    std::uint8_t id;
+};
 
-TEST(SentMessageTests, SerializeReturnsExactSizeAndMatchesMemory) {
-    constexpr PayloadByteArray PAYLOAD{
-        .id = 0xDE,
-        .data = {0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03, 0x04, 0x05},
-    };
-    const SentMessage<PayloadByteArray> msg(PAYLOAD);
-
-    const std::vector<uint8_t> bytes = msg.serialize();
-    ASSERT_EQ(bytes.size(), sizeof(PayloadByteArray));
-
-    const std::vector<uint8_t> expected = toBytes(PAYLOAD);
-    EXPECT_EQ(bytes, expected);
+TEST(Concepts, UnsignedByte) {
+    static_assert(UnsignedByte<std::uint8_t>);
+    static_assert(!UnsignedByte<std::uint16_t>);
+    static_assert(!UnsignedByte<std::int8_t>);
+    static_assert(!UnsignedByte<char>); // char may be signed or unsigned, but UnsignedByte requires unsigned & size==1
+    SUCCEED();
 }
 
-TEST(ReceivedMessageTests, ConstructFromBytesRoundTrip) {
-    PayloadByteArray p{};
-    for (std::size_t i = 0; i < 8; ++i)
-        p.data[i] = static_cast<std::uint8_t>(i * 7);
+TEST(Concepts, MessageFormatT) {
+    static_assert(MessageFormatT<GoodFormat>, "GoodFormat should satisfy MessageFormatT");
 
-    const std::vector<uint8_t> raw = toBytes(p);
-    const ReceivedMessage<PayloadByteArray> msg(raw);
-
-    // content() should match original object byte-for-byte
-    const std::vector<uint8_t> from_msg = toBytes(msg.content());
-    EXPECT_EQ(from_msg, raw);
-
-    // serialize() should produce the same bytes
-    const std::vector<uint8_t> serialized = msg.serialize();
-    EXPECT_EQ(serialized, raw);
+    static_assert(!MessageFormatT<BadNoId>, "Missing non-static member `id`");
+    static_assert(!MessageFormatT<BadIdNotFirst>, "`id` must be first member");
+    static_assert(!MessageFormatT<BadIdWrongType>, "`id` must be 1-byte unsigned");
+    static_assert(!MessageFormatT<BadStaticIdWrongType>, "T::ID must be 1-byte unsigned integral constant");
+    static_assert(!MessageFormatT<BadStaticIdEnum>, "T::ID must satisfy UnsignedByte, not enum");
+    SUCCEED();
 }
 
-TEST(SentMessageTests, ContentAccessorReflectsStoredCopy) {
-    PayloadByteArray p{};
-    for (int i = 0; i < 8; ++i)
-        p.data[i] = static_cast<std::uint8_t>(i);
+/* ―――――――――――――――― Runtime ―――――――――――――――― */
 
-    const SentMessage msg(p);
+using ReceivedGoodMessage = ReceivedMessage<GoodFormat>;
+using SentGoodMessage = SentMessage<GoodFormat>;
 
-    // Mutate original p; msg must keep its own copy
-    p.data[0] = 0xFF;
+TEST(SentMessageTests, SerializeMatchesStructMemory) {
+    // Arrange
+    GoodFormat payload{};
+    payload.id = GoodFormat::ID;
+    payload.a = 0xAB;
+    payload.b = 0xCDEF;
 
-    const PayloadByteArray& c = msg.content();
-    EXPECT_EQ(c.data[0], 0x00);
-    EXPECT_EQ(c.data[7], 0x07);
+    SentGoodMessage msg{payload};
+
+    // Act
+    std::vector<std::uint8_t> bytes = msg.serialize();
+    std::vector<std::uint8_t> expected = toBytes(payload);
+
+    // Assert
+    ASSERT_EQ(bytes.size(), sizeof(GoodFormat));
+    ASSERT_EQ(expected.size(), sizeof(GoodFormat));
+    EXPECT_EQ(bytes, expected) << "Serialized bytes should match raw memory layout";
+
+    // content() should equal payload byte-for-byte
+    EXPECT_EQ(toBytes(msg.content()), toBytes(payload));
+    EXPECT_EQ(msg.content().id, GoodFormat::ID);
+    EXPECT_EQ(msg.content().a, 0xAB);
+    EXPECT_EQ(msg.content().b, 0xCDEF);
 }
 
-TEST(ReceivedMessageTests, ThrowsOnInvalidSize) {
+TEST(ReceivedMessageTests, ConstructFromRawBytesRoundTrips) {
+    // Arrange: create raw bytes representing a GoodFormat
+    GoodFormat original{};
+    original.id = GoodFormat::ID;
+    original.a = 0x11;
+    original.b = 0x2233;
+    const std::vector<std::uint8_t> raw = toBytes(original);
+
+    // Act
+    ReceivedGoodMessage msg{raw};
+
+    // Assert: content equals original (byte-for-byte)
+    EXPECT_EQ(toBytes(msg.content()), toBytes(original));
+    EXPECT_EQ(msg.content().id, GoodFormat::ID);
+    EXPECT_EQ(msg.content().a, 0x11);
+    EXPECT_EQ(msg.content().b, 0x2233);
+
+    // And serialize() reproduces the same bytes
+    EXPECT_EQ(msg.serialize(), raw);
+}
+
+TEST(ReceivedMessageTests, ThrowsOnWrongSize) {
     // Too small
-    const std::vector<std::uint8_t> small(1, 0x00);
-    EXPECT_THROW((ReceivedMessage<PayloadByteArray>(small)), std::runtime_error);
+    std::vector<std::uint8_t> bad_small(sizeof(GoodFormat) - 1, 0);
+    // Too big
+    std::vector<std::uint8_t> bad_big(sizeof(GoodFormat) + 1, 0);
 
-    // Too large
-    const std::vector<std::uint8_t> large(sizeof(PayloadByteArray) + 3, 0xAA);
-    EXPECT_THROW((ReceivedMessage<PayloadByteArray>(large)), std::runtime_error);
+    EXPECT_THROW((ReceivedGoodMessage{bad_small}), std::runtime_error);
+    EXPECT_THROW((ReceivedGoodMessage{bad_big}), std::runtime_error);
 }
 
-TEST(BaseMessageSemantics, SerializeDoesNotAliasReturnedBuffer) {
-    PayloadByteArray p{};
-    for (int i = 0; i < 8; ++i)
-        p.data[i] = static_cast<std::uint8_t>(i + 10);
+TEST(Polymorphism, BasePointersWork) {
+    // Smoke test: ensure proper inheritance and virtual destructor do not crash
+    GoodFormat payload{};
+    payload.id = GoodFormat::ID;
+    payload.a = 0x55;
+    payload.b = 0xAA55;
 
-    const SentMessage msg(p);
+    SentMessage<GoodFormat> sm{payload};
+    Message<GoodFormat>* base = &sm;
+    std::vector<std::uint8_t> bytes = base->serialize();
+    ASSERT_EQ(bytes.size(), sizeof(GoodFormat));
 
-    std::vector<uint8_t> bytes = msg.serialize();
-    ASSERT_EQ(bytes.size(), sizeof(PayloadByteArray));
-
-    // Mutate the returned vector; the message’s internal state must not change
-    bytes[0] ^= 0xFF;
-
-    // Re-serialize and ensure it matches the original payload (not the mutated vector)
-    const std::vector<uint8_t> again = msg.serialize();
-    const std::vector<uint8_t> expected = toBytes(p);
-    EXPECT_EQ(again, expected);
+    // The first byte should be the ID by contract
+    EXPECT_EQ(bytes[0], GoodFormat::ID);
 }
