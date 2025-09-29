@@ -1,18 +1,17 @@
 #include "command.h"
+#include "handler.h"
 #include "message.h"
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <vector>
 
-/* ================= */
-/* USER-SPECIFIC MSG */
-/* ================= */
+/* ―――――――――――――――― Messages format ―――――――――――――――― */
 
 /**
  * @brief Structure representing the format of a specific received message
  */
-struct SpecificReceivedMessageFormat
+struct ReceivedMessageFormat1
 {
     static constexpr std::uint8_t ID = 0x01; ///< Unique identifier for this message type
     std::uint8_t id;                         ///< Command identifier
@@ -20,30 +19,70 @@ struct SpecificReceivedMessageFormat
 } __attribute__((packed));
 
 /**
- * @brief Type alias for a specific received message for example purposes
+ * @brief Structure representing the format of a specific received message
  */
-using SpecificReceivedMessage = ReceivedMessage<SpecificReceivedMessageFormat>;
+struct ReceivedMessageFormat2
+{
+    static constexpr std::uint8_t ID = 0x02; ///< Unique identifier for this message type
+    std::uint8_t id;                         ///< Command identifier
+    std::uint8_t arg;                        ///< Some argument associated with the command
+} __attribute__((packed));
+
+/**
+ * @brief Structure representing the format of a specific received message
+ */
+struct ReceivedMessageFormat3
+{
+    static constexpr std::uint8_t ID = 0x03; ///< Unique identifier for this message type
+    std::uint8_t id;                         ///< Command identifier
+    std::uint8_t arg;                        ///< Some argument associated with the command
+} __attribute__((packed));
 
 /**
  * @brief Structure representing the format of a specific sent message
  */
-struct SpecificSentMessageFormat
+struct SentMessageFormat1
 {
-    static constexpr std::uint8_t ID = 0x01; ///< Unique identifier for this message type
-    std::uint8_t id;                         ///< Command identifier (echoed from received message)
-    std::uint8_t status;                     ///< Status code (0x00 = success, others = error codes)
-    std::uint32_t value;                     ///< Some value associated with the command
+    static constexpr std::uint8_t ID = ReceivedMessageFormat1::ID; ///< Unique identifier for this message type
+    std::uint8_t id;                                               ///< Command identifier
+    std::uint8_t status;                                           ///< Status code
+    std::uint32_t value;                                           ///< Some value associated with the command
 } __attribute__((packed));
 
 /**
- * @brief Type alias for a specific sent message for example purposes
+ * @brief Structure representing the format of a specific sent message
  */
-using SpecificSentMessage = SentMessage<SpecificSentMessageFormat>;
+struct SentMessageFormat2
+{
+    static constexpr std::uint8_t ID = ReceivedMessageFormat2::ID; ///< Unique identifier for this message type
+    std::uint8_t id;                                               ///< Command identifier
+    std::uint8_t status;                                           ///< Status code
+    std::uint32_t value;                                           ///< Some value associated with the command
+} __attribute__((packed));
+
+/**
+ * @brief Structure representing the format of a specific sent message
+ */
+struct SentMessageFormat3
+{
+    static constexpr std::uint8_t ID = ReceivedMessageFormat3::ID; ///< Unique identifier for this message type
+    std::uint8_t id;                                               ///< Command identifier
+    std::uint8_t status;                                           ///< Status code
+    std::uint32_t value;                                           ///< Some value associated with the command
+} __attribute__((packed));
+
+/* ―――――――――――――――― Messages format ―――――――――――――――― */
+using ReceivedMessage1 = ReceivedMessage<ReceivedMessageFormat1>;
+using ReceivedMessage2 = ReceivedMessage<ReceivedMessageFormat2>;
+using ReceivedMessage3 = ReceivedMessage<ReceivedMessageFormat3>;
+using SentMessage1 = SentMessage<SentMessageFormat1>;
+using SentMessage2 = SentMessage<SentMessageFormat2>;
+using SentMessage3 = SentMessage<SentMessageFormat3>;
 
 /**
  * @brief Class representing a specific command that can be executed
  */
-struct SpecificCommand final : Command<SpecificReceivedMessageFormat, SpecificSentMessageFormat>
+struct Command1 final : Command<ReceivedMessageFormat1, SentMessageFormat1>
 {
     /**
      * @brief Constructs a SpecificCommand from raw byte input
@@ -51,82 +90,148 @@ struct SpecificCommand final : Command<SpecificReceivedMessageFormat, SpecificSe
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
      **/
-    explicit SpecificCommand(const std::vector<std::uint8_t>& content) : Command(content) {}
+    explicit Command1(const std::vector<std::uint8_t>& content) : Command(content) {}
 
     /**
      * @brief Executes the command associated with this message
      *
-     * @return SentMessage<SpecificSentMessageFormat> The response message after
+     * @return std::vector<std::vector<std::uint8_t>> The response message after
      * executing the command
      */
     [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
         // Dummy implementation
-        return {SentMessage<SpecificSentMessageFormat>({
-                                                           .id = this->content().id,
-                                                           .status = 0x00,
-                                                           .value = 0x12345678,
-                                                       })
+        return {output_message_t({
+                                     .id = this->content().id,
+                                     .status = 0x00,
+                                     .value = _content.arg * 1U,
+                                 })
                     .serialize()};
     }
 };
 
-/* ===== */
-/* USAGE */
-/* ===== */
-static void printVector(const std::vector<std::uint8_t>& vec) {
-    for (const auto& byte : vec) {
-        std::cout << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(byte);
+/**
+ * @brief Class representing a specific command that can be executed
+ */
+struct Command2 final : Command<ReceivedMessageFormat2, SentMessageFormat2>
+{
+    /**
+     * @brief Constructs a SpecificCommand from raw byte input
+     *
+     * @param content Raw byte content of the command message
+     * @throws std::runtime_error if content size is invalid
+     **/
+    explicit Command2(const std::vector<std::uint8_t>& content) : Command(content) {}
+
+    /**
+     * @brief Executes the command associated with this message
+     *
+     * @return std::vector<std::vector<std::uint8_t>> The response message after
+     * executing the command
+     */
+    [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
+        // Dummy implementation
+        return {output_message_t({
+                                     .id = this->content().id,
+                                     .status = 0x00,
+                                     .value = _content.arg * 2U,
+                                 })
+                    .serialize()};
     }
-    std::cout << std::dec << std::endl;
+};
+
+/**
+ * @brief Class representing a specific command that can be executed
+ */
+struct Command3 final : Command<ReceivedMessageFormat3, SentMessageFormat3>
+{
+    /**
+     * @brief Constructs a SpecificCommand from raw byte input
+     *
+     * @param content Raw byte content of the command message
+     * @throws std::runtime_error if content size is invalid
+     **/
+    explicit Command3(const std::vector<std::uint8_t>& content) : Command(content) {}
+
+    /**
+     * @brief Executes the command associated with this message
+     *
+     * @return std::vector<std::vector<std::uint8_t>> The response message after
+     * executing the command
+     */
+    [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
+        // Dummy implementation
+        return {output_message_t({
+                                     .id = this->content().id,
+                                     .status = 0x00,
+                                     .value = _content.arg * 3U,
+                                 })
+                    .serialize()};
+    }
+};
+
+using Handler123 = Handler<Command1, Command2, Command3>;
+
+/* ―――――――――――――――― Main ―――――――――――――――― */
+
+static bool isHexChar(char c) {
+    unsigned char uc = static_cast<unsigned char>(c);
+    return std::isxdigit(uc) != 0;
 }
 
 int main() {
-    // reception
-    const std::vector<std::uint8_t> received_data = {0x01, 0x05};
-    try {
-        const SpecificReceivedMessage recv_msg({0x01, 0x05});
-        std::cout << "Received Message:" << std::endl
-                  << " - id: " << static_cast<int>(recv_msg.content().id) << std::endl
-                  << " - arg: " << static_cast<int>(recv_msg.content().arg) << std::endl;
-        std::cout << "Serialized Received Message:\n 0x";
-        printVector(recv_msg.serialize());
-    }
-    catch (const std::runtime_error& e) {
-        std::cerr << "Error parsing received message: " << e.what() << std::endl;
-        return 1;
-    }
+    while (true) {
+        std::string line;
+        std::cout << "Enter hex bytes (contiguous, e.g., 0105): ";
+        if (!std::getline(std::cin, line)) {
+            break;
+        }
 
-    // sending
-    constexpr SpecificSentMessageFormat CONTENT = {
-        .id = 0x01,
-        .status = 0x02,
-        .value = 0xDEADBEEF,
-    };
-    const SpecificSentMessage sent_msg(CONTENT);
+        // Quit on empty input
+        if (line.empty()) {
+            break;
+        }
 
-    std::cout << "Sent Message:" << std::endl
-              << " - id: " << static_cast<int>(sent_msg.content().id) << std::endl
-              << " - status: " << static_cast<int>(sent_msg.content().status) << std::endl
-              << " - value: " << sent_msg.content().value << std::endl;
-    std::cout << "Serialized Sent Message:\n 0x";
-    printVector(sent_msg.serialize());
+        // Validate: only hex digits and even length
+        bool all_hex = true;
+        for (char i : line) {
+            if (!isHexChar(i)) {
+                all_hex = false;
+                break;
+            }
+        }
+        if (!all_hex) {
+            std::cerr << "Error: input must be contiguous hex digits only (0-9, a-f, A-F)." << std::endl;
+            continue;
+        }
+        if ((line.size() % 2) != 0) {
+            std::cerr << "Error: odd number of hex digits; pad with a leading 0." << std::endl;
+            continue;
+        }
 
-    // command
-    try {
-        const SpecificCommand cmd(received_data);
-        std::cout << "Command Message:" << std::endl
-                  << " - id: " << static_cast<int>(cmd.content().id) << std::endl
-                  << " - arg: " << static_cast<int>(cmd.content().arg) << std::endl;
-        std::cout << "Serialized Command Message:\n 0x";
-        printVector(cmd.serialize());
+        // Convert contiguous hex string to bytes
+        std::vector<std::uint8_t> data;
+        data.reserve(line.size() / 2);
+        for (std::size_t i = 0; i < line.size(); i += 2) {
+            const std::string byte_str = line.substr(i, 2);
+            data.push_back(static_cast<std::uint8_t>(static_cast<std::uint8_t>(std::stoul(byte_str, nullptr, 16))));
+        }
 
-        const std::vector<std::vector<std::uint8_t>> responses = cmd.execute();
-        std::cout << "Serialized Command Response Message:\n 0x";
-        printVector(responses[0]);
-    }
-    catch (const std::runtime_error& e) {
-        std::cerr << "Error parsing command message: " << e.what() << std::endl;
-        return 1;
+        try {
+            // Execute handler
+            const std::vector<std::vector<std::uint8_t>> responses = Handler123::execute(data);
+
+            // Print responses as hex
+            for (const std::vector<std::uint8_t>& response : responses) {
+                std::cout << "Response: ";
+                for (std::uint8_t b : response) {
+                    std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b) << " ";
+                }
+                std::cout << std::dec << std::endl; // reset to decimal
+            }
+        }
+        catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
     }
     return 0;
 }
