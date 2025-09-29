@@ -8,7 +8,7 @@
 
 /**
  * @brief Helper concept to ensure a type is an unsigned byte (uint8_t)
- * Usage: UnsignedByte<T>
+ * Usage: static_assert(UnsignedByte<T>);
  * @tparam T The type to be checked
  */
 template <class T> concept UnsignedByte = std::is_integral_v<T> && std::is_unsigned_v<T> && sizeof(T) == 1;

@@ -7,7 +7,7 @@
 
 /**
  * @brief Concept to ensure a type behaves like a Command
- * Usage: CommandLike<T>
+ * Usage: static_assert(CommandLike<T>);
  * @tparam C The type to be checked
  */
 template <typename C> concept CommandLike = requires(const std::vector<std::uint8_t>& raw, const C& c) {
@@ -44,7 +44,7 @@ template <typename...> struct UniqueIds : std::true_type
  * @tparam Rest The remaining Command-like types
  */
 template <typename C, typename... Rest> struct UniqueIds<C, Rest...>
-    : std::bool_constant<(cmdId<C>() != ... != cmdId<Rest>()) && UniqueIds<Rest...>::value>
+    : std::bool_constant<((cmdId<C>() != cmdId<Rest>()) && ...) && UniqueIds<Rest...>::value>
 {};
 } // namespace command_helpers
 

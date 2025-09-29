@@ -1,7 +1,7 @@
 #include "command.h"
 #include "message.h"
 
-#include <cstddef>      // offsetof
+#include <cstddef> // offsetof
 #include <cstdint>
 #include <cstring>
 #include <gtest/gtest.h>
@@ -10,8 +10,7 @@
 
 /* ―――――――――――――――― Helpers ―――――――――――――――― */
 
-template <typename T>
-static std::vector<std::uint8_t> toBytes(const T& obj) {
+template <typename T> static std::vector<std::uint8_t> toBytes(const T& obj) {
     static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for byte memcpy");
     std::vector<std::uint8_t> bytes(sizeof(T));
     std::memcpy(bytes.data(), &obj, sizeof(T));
@@ -58,15 +57,14 @@ using TestCommandBase = Command<CmdFormat, RspFormat>;
 class EchoPlusOneCommand final : public TestCommandBase
 {
   public:
-    explicit EchoPlusOneCommand(const std::vector<std::uint8_t>& raw)
-        : TestCommandBase(raw) {}
+    explicit EchoPlusOneCommand(const std::vector<std::uint8_t>& raw) : TestCommandBase(raw) {}
 
     [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
         // Build response payload from input content()
         RspFormat rsp{};
-        rsp.id     = RspFormat::ID;
+        rsp.id = RspFormat::ID;
         rsp.status = this->content().opcode;
-        rsp.value  = static_cast<std::uint16_t>(this->content().param + 1);
+        rsp.value = static_cast<std::uint16_t>(this->content().param + 1);
 
         TestCommandBase::output_message_t out{rsp};
         std::vector<std::uint8_t> bytes = out.serialize();
@@ -93,9 +91,9 @@ TEST(CommandBasics, TypeAliases) {
 
 TEST(CommandConstruction, AcceptsWellFormedRaw) {
     CmdFormat cmd{};
-    cmd.id     = CmdFormat::ID;
+    cmd.id = CmdFormat::ID;
     cmd.opcode = 0x33;
-    cmd.param  = 0x4455;
+    cmd.param = 0x4455;
 
     const std::vector<std::uint8_t> raw = toBytes(cmd);
     EchoPlusOneCommand c{raw};
@@ -124,18 +122,18 @@ TEST(CommandConstruction, ThrowsOnWrongSize) {
 TEST(CommandExecute, ProducesExpectedResponseBytes) {
     // Arrange input
     CmdFormat cmd{};
-    cmd.id     = CmdFormat::ID;
+    cmd.id = CmdFormat::ID;
     cmd.opcode = 0x7A;
-    cmd.param  = 0x00FF; // 255
+    cmd.param = 0x00FF; // 255
 
     const std::vector<std::uint8_t> raw = toBytes(cmd);
     EchoPlusOneCommand c{raw};
 
     // Expected response
     RspFormat expected_rsp{};
-    expected_rsp.id     = RspFormat::ID;
-    expected_rsp.status = cmd.opcode;                 // echo opcode
-    expected_rsp.value  = static_cast<std::uint16_t>(cmd.param + 1); // +1
+    expected_rsp.id = RspFormat::ID;
+    expected_rsp.status = cmd.opcode;                               // echo opcode
+    expected_rsp.value = static_cast<std::uint16_t>(cmd.param + 1); // +1
 
     TestCommandBase::output_message_t out_msg{expected_rsp};
     const std::vector<std::uint8_t> expected_bytes = out_msg.serialize();
@@ -152,16 +150,16 @@ TEST(CommandExecute, ProducesExpectedResponseBytes) {
 TEST(CommandExecute, MultipleInstancesIndependentState) {
     // First instance
     CmdFormat c1{};
-    c1.id     = CmdFormat::ID;
+    c1.id = CmdFormat::ID;
     c1.opcode = 0x10;
-    c1.param  = 0x0001;
+    c1.param = 0x0001;
     EchoPlusOneCommand cmd1{toBytes(c1)};
 
     // Second instance
     CmdFormat c2{};
-    c2.id     = CmdFormat::ID;
+    c2.id = CmdFormat::ID;
     c2.opcode = 0xFE;
-    c2.param  = 0x00FE;
+    c2.param = 0x00FE;
     EchoPlusOneCommand cmd2{toBytes(c2)};
 
     // Execute both
@@ -170,14 +168,14 @@ TEST(CommandExecute, MultipleInstancesIndependentState) {
 
     // Build expected frames
     RspFormat r1{};
-    r1.id     = RspFormat::ID;
+    r1.id = RspFormat::ID;
     r1.status = c1.opcode;
-    r1.value  = static_cast<std::uint16_t>(c1.param + 1);
+    r1.value = static_cast<std::uint16_t>(c1.param + 1);
 
     RspFormat r2{};
-    r2.id     = RspFormat::ID;
+    r2.id = RspFormat::ID;
     r2.status = c2.opcode;
-    r2.value  = static_cast<std::uint16_t>(c2.param + 1);
+    r2.value = static_cast<std::uint16_t>(c2.param + 1);
 
     const std::vector<std::uint8_t> e1 = SentMessage<RspFormat>{r1}.serialize();
     const std::vector<std::uint8_t> e2 = SentMessage<RspFormat>{r2}.serialize();
