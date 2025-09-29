@@ -14,8 +14,8 @@
  */
 struct SpecificReceivedMessageFormat
 {
-    std::uint8_t cmd_id; ///< Command identifier
-    std::uint8_t arg;    ///< Some argument associated with the command
+    std::uint8_t id;  ///< Command identifier
+    std::uint8_t arg; ///< Some argument associated with the command
 } __attribute__((packed));
 
 /**
@@ -28,7 +28,7 @@ using SpecificReceivedMessage = ReceivedMessage<SpecificReceivedMessageFormat>;
  */
 struct SpecificSentMessageFormat
 {
-    std::uint8_t cmd_id; ///< Command identifier (echoed from received message)
+    std::uint8_t id;     ///< Command identifier (echoed from received message)
     std::uint8_t status; ///< Status code (0x00 = success, others = error codes)
     std::uint32_t value; ///< Some value associated with the command
 } __attribute__((packed));
@@ -59,7 +59,7 @@ struct SpecificCommand final : Command<SpecificReceivedMessageFormat, SpecificSe
     [[nodiscard]] SentMessage<SpecificSentMessageFormat> execute() const override {
         // Dummy implementation
         return SentMessage<SpecificSentMessageFormat>({
-            .cmd_id = this->content().cmd_id,
+            .id = this->content().id,
             .status = 0x00,
             .value = 0x12345678,
         });
@@ -82,7 +82,7 @@ int main() {
     try {
         const SpecificReceivedMessage recv_msg({0x01, 0x05});
         std::cout << "Received Message:" << std::endl
-                  << " - cmd_id: " << static_cast<int>(recv_msg.content().cmd_id) << std::endl
+                  << " - id: " << static_cast<int>(recv_msg.content().id) << std::endl
                   << " - arg: " << static_cast<int>(recv_msg.content().arg) << std::endl;
         std::cout << "Serialized Received Message:\n 0x";
         printVector(recv_msg.serialize());
@@ -94,14 +94,14 @@ int main() {
 
     // sending
     constexpr SpecificSentMessageFormat CONTENT = {
-        .cmd_id = 0x01,
+        .id = 0x01,
         .status = 0x02,
         .value = 0xDEADBEEF,
     };
     const SpecificSentMessage sent_msg(CONTENT);
 
     std::cout << "Sent Message:" << std::endl
-              << " - cmd_id: " << static_cast<int>(sent_msg.content().cmd_id) << std::endl
+              << " - id: " << static_cast<int>(sent_msg.content().id) << std::endl
               << " - status: " << static_cast<int>(sent_msg.content().status) << std::endl
               << " - value: " << sent_msg.content().value << std::endl;
     std::cout << "Serialized Sent Message:\n 0x";
@@ -111,14 +111,14 @@ int main() {
     try {
         const SpecificCommand cmd(received_data);
         std::cout << "Command Message:" << std::endl
-                  << " - cmd_id: " << static_cast<int>(cmd.content().cmd_id) << std::endl
+                  << " - id: " << static_cast<int>(cmd.content().id) << std::endl
                   << " - arg: " << static_cast<int>(cmd.content().arg) << std::endl;
         std::cout << "Serialized Command Message:\n 0x";
         printVector(cmd.serialize());
 
         const SpecificCommand::output_message_t response = cmd.execute();
         std::cout << "Command Response Message:" << std::endl
-                  << " - cmd_id: " << static_cast<int>(response.content().cmd_id) << std::endl
+                  << " - id: " << static_cast<int>(response.content().id) << std::endl
                   << " - status: " << static_cast<int>(response.content().status) << std::endl
                   << " - value: " << response.content().value << std::endl;
         std::cout << "Serialized Command Response Message:\n 0x";
