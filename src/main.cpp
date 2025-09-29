@@ -14,6 +14,7 @@
  */
 struct SpecificReceivedMessageFormat
 {
+    static constexpr std::uint8_t ID = 0x01; ///< Unique identifier for this message type
     std::uint8_t id;  ///< Command identifier
     std::uint8_t arg; ///< Some argument associated with the command
 } __attribute__((packed));
@@ -28,6 +29,7 @@ using SpecificReceivedMessage = ReceivedMessage<SpecificReceivedMessageFormat>;
  */
 struct SpecificSentMessageFormat
 {
+    static constexpr std::uint8_t ID = 0x01; ///< Unique identifier for this message type
     std::uint8_t id;     ///< Command identifier (echoed from received message)
     std::uint8_t status; ///< Status code (0x00 = success, others = error codes)
     std::uint32_t value; ///< Some value associated with the command

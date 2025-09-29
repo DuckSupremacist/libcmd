@@ -16,6 +16,7 @@ template <typename T> static std::vector<std::uint8_t> toBytes(const T& obj) {
 // -----------------------------------------------------------------------------
 struct CmdPayload
 {
+    static constexpr std::uint8_t ID = 0x10;
     std::uint8_t id;
     std::uint16_t a;
     std::uint32_t b;
@@ -24,6 +25,7 @@ static_assert(std::is_trivially_copyable_v<CmdPayload>);
 
 struct RspPayload
 {
+    static constexpr std::uint8_t ID = 0x11;
     std::uint8_t id;
     std::uint16_t a;
     std::uint32_t b;

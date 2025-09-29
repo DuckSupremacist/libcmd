@@ -14,6 +14,8 @@ template <typename T> static std::vector<std::uint8_t> toBytes(const T& obj) {
 // Trivially copyable payload
 struct PayloadByteArray
 {
+    static constexpr std::uint8_t ID = 0x01;
+    std::uint8_t id;
     std::uint8_t data[8];
 } __attribute__((packed));
 static_assert(std::is_trivially_copyable_v<PayloadByteArray>);
@@ -21,9 +23,10 @@ static_assert(std::is_trivially_copyable_v<PayloadByteArray>);
 // Trivially copyable payload
 struct PayloadMixed
 {
-    std::uint8_t a;
-    std::uint16_t b;
-    std::uint32_t c;
+    static constexpr std::uint8_t ID = 0x02;
+    std::uint8_t id;
+    std::uint16_t a;
+    std::uint32_t b;
 } __attribute__((packed));
 static_assert(std::is_trivially_copyable_v<PayloadMixed>);
 
@@ -32,8 +35,11 @@ static_assert(std::is_trivially_copyable_v<PayloadMixed>);
 // -----------------------------------------------------------------------------
 
 TEST(SentMessageTests, SerializeReturnsExactSizeAndMatchesMemory) {
-    constexpr PayloadByteArray PAYLOAD{0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03, 0x04};
-    const SentMessage msg(PAYLOAD);
+    constexpr PayloadByteArray PAYLOAD{
+        .id=0xDE,
+        .data={0xAD,0xBE,0xEF,0x01,0x02,0x03,0x04,0x05},
+    };
+    const SentMessage<PayloadByteArray> msg(PAYLOAD);
 
     const std::vector<uint8_t> bytes = msg.serialize();
     ASSERT_EQ(bytes.size(), sizeof(PayloadByteArray));

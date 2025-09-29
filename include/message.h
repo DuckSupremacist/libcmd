@@ -5,6 +5,49 @@
 #include <vector>
 
 /**
+ * @brief Concept to ensure a type is an unsigned byte (uint8_t)
+ * This concept checks if a given type U is an integral type,
+ * is unsigned, and has a size of 1 byte.
+ * @tparam T The type to be checked
+ */
+template <class T>
+concept UnsignedByte =
+    std::is_integral_v<T> &&
+    std::is_unsigned_v<T> &&
+    sizeof(T) == 1;
+
+/**
+ * @brief Concept to ensure a message format has a static ID and that `id` is the first member.
+ *
+ * Requirements:
+ *  - `T::ID` is a constant expression, representable in uint8_t.
+ *  - The type of `T::ID` is a 1-byte unsigned integral (or use the enum-friendly variant below).
+ *  - `T` has a non-static data member `id` that is an unsigned 1-byte integral.
+ *  - `id` is an lvalue (rules out bit-fields/proxies).
+ *  - `T` is standard-layout and `offsetof(T, id) == 0`.
+ *  - (Optional) `T` is trivially copyable for safe memcpy of the whole struct.
+ *
+ * @tparam T The message format type to be checked.
+ */
+template <typename T>
+concept MessageFormatWithIdFirst =
+    // must expose a `static constexpr uint8_t ID`
+    requires {
+        requires UnsignedByte<decltype(T::ID)>;
+        std::integral_constant<std::uint8_t, T::ID>{};
+    } &&
+    // must have a non-static member `uint8_t id`
+    requires (T& x)
+    {
+        requires UnsignedByte<std::remove_cvref_t<decltype(x.id)>>;
+        requires std::is_lvalue_reference_v<decltype((x.id))>; // prevent
+    } &&
+    // layout precondition for using offsetof
+    std::is_standard_layout_v<T> &&
+    // id must be the very first member
+    requires { requires offsetof(T, id) == 0; };
+
+/**
  * @brief Abstract base class representing a generic message
  *
  * This class provides functionality to serialize and deserialize messages.
@@ -12,7 +55,7 @@
  *
  * @tparam MessageFormat The format of the message content
  */
-template <typename MessageFormat> class Message
+template <MessageFormatWithIdFirst MessageFormat> class Message
 {
   protected:
     MessageFormat _content; ///< Structured content of the message
@@ -64,7 +107,7 @@ template <typename MessageFormat> class Message
  *
  * @tparam ReceivedMessageFormat The format of the received message
  */
-template <typename ReceivedMessageFormat> class ReceivedMessage : public Message<ReceivedMessageFormat>
+template <MessageFormatWithIdFirst ReceivedMessageFormat> class ReceivedMessage : public Message<ReceivedMessageFormat>
 {
   public:
     /** @brief Constructs a ReceivedMessage from raw byte input
@@ -82,7 +125,7 @@ template <typename ReceivedMessageFormat> class ReceivedMessage : public Message
  *
  * @tparam SentMessageFormat The format of the sent message
  */
-template <typename SentMessageFormat> class SentMessage final : public Message<SentMessageFormat>
+template <MessageFormatWithIdFirst SentMessageFormat> class SentMessage final : public Message<SentMessageFormat>
 {
   public:
     /** @brief Constructs a SentMessage from structured content

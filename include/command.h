@@ -2,24 +2,6 @@
 #include "message.h"
 
 /**
- * @brief Concept to ensure a message format has a static ID member
- *
- * This concept checks if a given type T has a static member named ID
- * that is convertible to std::uint8_t. This is used to enforce that
- * message formats used in commands have a unique identifier.
- *
- * @tparam T The type to be checked
- */
-template <typename T>
-concept MessageFormatWithIdFirst =
-    // must have a non-static member `id`
-    requires (T& t) { { t.id } -> std::convertible_to<std::uint8_t>; } &&
-    // layout precondition for using offsetof
-    std::is_standard_layout_v<T> &&
-    // id must be the very first member
-    requires { requires offsetof(T, id) == 0; };
-
-/**
  * @brief Abstract base class representing a command that can be executed
  *
  * This class inherits from ReceivedMessage and defines an interface for executing commands.
