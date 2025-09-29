@@ -11,10 +11,7 @@
  * @tparam T The type to be checked
  */
 template <class T>
-concept UnsignedByte =
-    std::is_integral_v<T> &&
-    std::is_unsigned_v<T> &&
-    sizeof(T) == 1;
+concept UnsignedByte = std::is_integral_v<T> && std::is_unsigned_v<T> && sizeof(T) == 1;
 
 /**
  * @brief Concept to ensure a message format has a static ID and that `id` is the first member.
@@ -37,8 +34,7 @@ concept MessageFormatWithIdFirst =
         std::integral_constant<std::uint8_t, T::ID>{};
     } &&
     // must have a non-static member `uint8_t id`
-    requires (T& x)
-    {
+    requires(T& x) {
         requires UnsignedByte<std::remove_cvref_t<decltype(x.id)>>;
         requires std::is_lvalue_reference_v<decltype((x.id))>; // prevent
     } &&
@@ -80,6 +76,9 @@ template <MessageFormatWithIdFirst MessageFormat> class Message
     }
 
   public:
+    /** @brief Type alias for the message format */
+    using message_format_t = MessageFormat;
+
     virtual ~Message() = default;
 
     /** @brief Serializes the message content into a byte vector

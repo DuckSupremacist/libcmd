@@ -36,8 +36,8 @@ static_assert(std::is_trivially_copyable_v<PayloadMixed>);
 
 TEST(SentMessageTests, SerializeReturnsExactSizeAndMatchesMemory) {
     constexpr PayloadByteArray PAYLOAD{
-        .id=0xDE,
-        .data={0xAD,0xBE,0xEF,0x01,0x02,0x03,0x04,0x05},
+        .id = 0xDE,
+        .data = {0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03, 0x04, 0x05},
     };
     const SentMessage<PayloadByteArray> msg(PAYLOAD);
 

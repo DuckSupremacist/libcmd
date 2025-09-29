@@ -14,6 +14,8 @@ template <MessageFormatWithIdFirst CommandMessageFormat, MessageFormatWithIdFirs
 class Command : public ReceivedMessage<CommandMessageFormat>
 {
   public:
+    /** @brief Type alias for the input message type */
+    using input_message_t = ReceivedMessage<CommandMessageFormat>;
     /** @brief Type alias for the output message type */
     using output_message_t = SentMessage<ResponseMessageFormat>;
 
@@ -27,7 +29,7 @@ class Command : public ReceivedMessage<CommandMessageFormat>
     /**
      * @brief Executes the command associated with this message
      *
-     * @return SentMessage<ResponseMessageFormat> The response message after executing the command
+     * @return std::vector<output_message_t> The response message vector after executing the command
      */
-    [[nodiscard]] virtual output_message_t execute() const = 0;
+    [[nodiscard]] virtual std::vector<std::vector<std::uint8_t>> execute() const = 0;
 };

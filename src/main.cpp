@@ -15,8 +15,8 @@
 struct SpecificReceivedMessageFormat
 {
     static constexpr std::uint8_t ID = 0x01; ///< Unique identifier for this message type
-    std::uint8_t id;  ///< Command identifier
-    std::uint8_t arg; ///< Some argument associated with the command
+    std::uint8_t id;                         ///< Command identifier
+    std::uint8_t arg;                        ///< Some argument associated with the command
 } __attribute__((packed));
 
 /**
@@ -30,9 +30,9 @@ using SpecificReceivedMessage = ReceivedMessage<SpecificReceivedMessageFormat>;
 struct SpecificSentMessageFormat
 {
     static constexpr std::uint8_t ID = 0x01; ///< Unique identifier for this message type
-    std::uint8_t id;     ///< Command identifier (echoed from received message)
-    std::uint8_t status; ///< Status code (0x00 = success, others = error codes)
-    std::uint32_t value; ///< Some value associated with the command
+    std::uint8_t id;                         ///< Command identifier (echoed from received message)
+    std::uint8_t status;                     ///< Status code (0x00 = success, others = error codes)
+    std::uint32_t value;                     ///< Some value associated with the command
 } __attribute__((packed));
 
 /**
@@ -58,13 +58,14 @@ struct SpecificCommand final : Command<SpecificReceivedMessageFormat, SpecificSe
      *
      * @return SentMessage<SpecificSentMessageFormat> The response message after executing the command
      */
-    [[nodiscard]] SentMessage<SpecificSentMessageFormat> execute() const override {
+    [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
         // Dummy implementation
-        return SentMessage<SpecificSentMessageFormat>({
-            .id = this->content().id,
-            .status = 0x00,
-            .value = 0x12345678,
-        });
+        return {SentMessage<SpecificSentMessageFormat>({
+                                                           .id = this->content().id,
+                                                           .status = 0x00,
+                                                           .value = 0x12345678,
+                                                       })
+                    .serialize()};
     }
 };
 
@@ -118,13 +119,9 @@ int main() {
         std::cout << "Serialized Command Message:\n 0x";
         printVector(cmd.serialize());
 
-        const SpecificCommand::output_message_t response = cmd.execute();
-        std::cout << "Command Response Message:" << std::endl
-                  << " - id: " << static_cast<int>(response.content().id) << std::endl
-                  << " - status: " << static_cast<int>(response.content().status) << std::endl
-                  << " - value: " << response.content().value << std::endl;
+        const std::vector<std::vector<std::uint8_t>> responses = cmd.execute();
         std::cout << "Serialized Command Response Message:\n 0x";
-        printVector(response.serialize());
+        printVector(responses[0]);
     }
     catch (const std::runtime_error& e) {
         std::cerr << "Error parsing command message: " << e.what() << std::endl;

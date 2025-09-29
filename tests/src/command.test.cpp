@@ -41,14 +41,15 @@ class PlusOneCommand final : public Command<CmdPayload, RspPayload>
   public:
     explicit PlusOneCommand(const std::vector<std::uint8_t>& content) : Command(content) {}
 
-    [[nodiscard]] output_message_t execute() const override {
-        return output_message_t(
-            RspPayload{
-                .id = static_cast<std::uint8_t>(_content.id + 1U),
-                .a = static_cast<std::uint16_t>(_content.a + 1U),
-                .b = static_cast<std::uint32_t>(_content.b + 1U),
-            }
-        );
+    [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
+        return {output_message_t(
+                    RspPayload{
+                        .id = static_cast<std::uint8_t>(_content.id + 1U),
+                        .a = static_cast<std::uint16_t>(_content.a + 1U),
+                        .b = static_cast<std::uint32_t>(_content.b + 1U),
+                    }
+        )
+                    .serialize()};
     }
 };
 
@@ -82,15 +83,11 @@ TEST(CommandTests, ExecuteProducesExpectedResponse) {
     const std::vector<std::uint8_t> raw = toBytes(payload);
     const PlusOneCommand cmd(raw);
 
-    const PlusOneCommand::output_message_t response = cmd.execute();
-    const RspPayload& r = response.content();
+    const std::vector<std::vector<std::uint8_t>> responses = cmd.execute();
+    ASSERT_EQ(responses.size(), 1U);
+    const std::vector<std::uint8_t>& response = responses.front();
 
-    EXPECT_EQ(r.id, static_cast<std::uint8_t>(payload.id + 1U));
-    EXPECT_EQ(r.a, static_cast<std::uint16_t>(payload.a + 1U));
-    EXPECT_EQ(r.b, static_cast<std::uint32_t>(payload.b + 1U));
-
-    const std::vector<std::uint8_t> serialized = response.serialize();
-    ASSERT_EQ(serialized.size(), sizeof(RspPayload));
+    ASSERT_EQ(response.size(), sizeof(RspPayload));
 
     RspPayload expected{};
     expected.id = static_cast<std::uint8_t>(payload.id + 1U);
@@ -98,7 +95,7 @@ TEST(CommandTests, ExecuteProducesExpectedResponse) {
     expected.b = static_cast<std::uint32_t>(payload.b + 1U);
     const std::vector<std::uint8_t> expected_bytes = toBytes(expected);
 
-    EXPECT_EQ(serialized, expected_bytes);
+    EXPECT_EQ(response, expected_bytes);
 }
 
 TEST(CommandTests, ThrowsOnInvalidSize) {
@@ -120,9 +117,10 @@ TEST(CommandTests, ResponseSerializeMatchesMemoryImage) {
     const std::vector<std::uint8_t> raw = toBytes(payload);
     const PlusOneCommand cmd(raw);
 
-    const PlusOneCommand::output_message_t response = cmd.execute();
-    const std::vector<std::uint8_t> bytes = response.serialize();
-    ASSERT_EQ(bytes.size(), sizeof(RspPayload));
+    const std::vector<std::vector<std::uint8_t>> responses = cmd.execute();
+    ASSERT_EQ(responses.size(), 1U);
+    const std::vector<std::uint8_t>& response = responses.front();
+    ASSERT_EQ(response.size(), sizeof(RspPayload));
 
     RspPayload expected{};
     expected.id = static_cast<std::uint8_t>(payload.id + 1U);
@@ -130,5 +128,5 @@ TEST(CommandTests, ResponseSerializeMatchesMemoryImage) {
     expected.b = static_cast<std::uint32_t>(payload.b + 1U);
 
     const std::vector<std::uint8_t> expected_bytes = toBytes(expected);
-    EXPECT_EQ(bytes, expected_bytes);
+    EXPECT_EQ(response, expected_bytes);
 }
