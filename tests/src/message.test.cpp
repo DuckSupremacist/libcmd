@@ -13,6 +13,8 @@ template <typename T> static std::vector<std::uint8_t> toBytes(const T& obj) {
     return bytes;
 }
 
+/* ―――――――――――――――― Formats ―――――――――――――――― */
+
 // A well-formed message format: standard-layout, id is first, static constexpr std::uint8_t ID.
 struct GoodFormat
 {
@@ -84,10 +86,12 @@ TEST(Concepts, MessageFormatT) {
     SUCCEED();
 }
 
-/* ―――――――――――――――― Runtime ―――――――――――――――― */
+/* ―――――――――――――――― Concrete Messages for tests ―――――――――――――――― */
 
 using ReceivedGoodMessage = ReceivedMessage<GoodFormat>;
 using SentGoodMessage = SentMessage<GoodFormat>;
+
+/* ―――――――――――――――― Runtime tests ―――――――――――――――― */
 
 TEST(SentMessageTests, SerializeMatchesStructMemory) {
     // Arrange
