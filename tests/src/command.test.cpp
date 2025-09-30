@@ -1,7 +1,6 @@
 #include "command.h"
 #include "message.h"
-
-#include <cstddef> // offsetof
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <gtest/gtest.h>
