@@ -212,8 +212,8 @@ static void resetCounters() {
 
 TEST(HandlerExecute, ThrowsOnEmpty) {
     resetCounters();
-    constexpr std::vector<std::uint8_t> EMPTY;
-    EXPECT_THROW((void)TestHandlerABC::execute(EMPTY), std::runtime_error);
+    const std::vector<std::uint8_t> empty;
+    EXPECT_THROW((void)TestHandlerABC::execute(empty), std::runtime_error);
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
     EXPECT_EQ(constructed_c, 0);
