@@ -7,20 +7,28 @@
 /* ―――――――――――――――― Concepts ―――――――――――――――― */
 
 /**
- * @brief Helper concept to ensure a type is an unsigned byte (uint8_t)
+ * @brief Helper concept to ensure a type is an unsigned byte (std::uint8_t, unsigned char, etc...)
  * Usage: static_assert(UnsignedByte<T>);
  * @tparam T The type to be checked
  */
-template <class T> concept UnsignedByte = std::is_integral_v<T> && std::is_unsigned_v<T> && sizeof(T) == 1;
+template <class T> concept UnsignedByte =
+    std::is_integral_v<T> && std::is_unsigned_v<T> && sizeof(T) == 1; // TODO: enum-friendly variant?
 
 /**
  * @brief Concept to ensure a message format has a static ID and that `id` is
  * the first member.
  *
+ * Example of a conforming type:
+ * struct MessageFormat {
+ *     static constexpr std::uint8_t ID = 0x01; // static ID
+ *     std::uint8_t id; // must be first member
+ *     std::uint32_t data; // other members
+ *     std::array<std::uint8_t, 10> payload; // etc.
+ * };
+ *
  * Requirements:
- *  - `T::ID` is a constant expression, representable in uint8_t.
- *  - The type of `T::ID` is a 1-byte unsigned integral (or use the
- * enum-friendly variant below).
+ *  - `T::ID` is a constant expression, representable in std::uint8_t.
+ *  - The type of `T::ID` is a 1-byte unsigned integral (or use the enum-friendly variant below).
  *  - `T` has a non-static data member `id` that is an unsigned 1-byte integral.
  *  - `id` is an lvalue (rules out bit-fields/proxies).
  *  - `T` is standard-layout and `offsetof(T, id) == 0`.
@@ -29,11 +37,11 @@ template <class T> concept UnsignedByte = std::is_integral_v<T> && std::is_unsig
  * @tparam T The message format type to be checked.
  */
 template <typename T> concept MessageFormatT =
-    requires { // must expose a `static constexpr uint8_t ID`
+    requires { // must expose a `static constexpr std::uint8_t ID`
         requires UnsignedByte<decltype(T::ID)>;
         std::integral_constant<std::uint8_t, T::ID>{};
     } &&
-    requires(T& x) { // must have a non-static member `uint8_t id`
+    requires(T& x) { // must have a non-static member `std::uint8_t id`
         requires UnsignedByte<std::remove_cvref_t<decltype(x.id)>>;
         requires std::is_lvalue_reference_v<decltype((x.id))>;
     } && std::is_standard_layout_v<T> && // layout precondition for using offsetof
@@ -67,7 +75,7 @@ template <MessageFormatT MessageFormat> class Message
      * @throws std::runtime_error if content size is invalid
      **/
     explicit Message(const std::vector<std::uint8_t>& content) {
-        if (content.size() != sizeof(MessageFormat)) {
+        if (content.size() != sizeof(MessageFormat)) { // TODO: handle structs with flexible array member?
             throw std::runtime_error("Invalid content size");
         }
         std::memcpy(&_content, content.data(), sizeof(MessageFormat));

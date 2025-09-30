@@ -19,7 +19,7 @@ template <typename T> static std::vector<std::uint8_t> toBytes(const T& obj) {
 
 /* ―――――――――――――――― Formats ―――――――――――――――― */
 
-// Command (input) format: standard-layout, id first, static constexpr uint8_t ID
+// Command (input) format: standard-layout, id first, static constexpr std::uint8_t ID
 struct CmdFormat
 {
     static constexpr std::uint8_t ID = 0x10;

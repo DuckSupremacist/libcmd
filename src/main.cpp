@@ -222,9 +222,9 @@ int main() {
 
             // Print responses as hex
             for (const std::vector<std::uint8_t>& response : responses) {
-                std::cout << "Response: ";
+                std::cout << "Response: 0x";
                 for (std::uint8_t b : response) {
-                    std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b) << " ";
+                    std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
                 }
                 std::cout << std::dec << std::endl; // reset to decimal
             }

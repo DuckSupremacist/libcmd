@@ -27,13 +27,13 @@ namespace command_helpers
  * @tparam C The Command-like type
  * @return std::uint8_t The command ID
  */
-template <typename C> consteval std::uint8_t cmdId() { return C::input_message_t::message_format_t::ID; }
+template <CommandLike C> consteval std::uint8_t cmdId() { return C::input_message_t::message_format_t::ID; }
 
 /**
  * @brief Base case for UniqueIds: no types means all IDs are unique
  * @tparam ...
  */
-template <typename...> struct UniqueIds : std::true_type
+template <CommandLike...> struct UniqueIds : std::true_type
 {};
 
 /**
@@ -43,7 +43,7 @@ template <typename...> struct UniqueIds : std::true_type
  * @tparam C The first Command-like type
  * @tparam Rest The remaining Command-like types
  */
-template <typename C, typename... Rest> struct UniqueIds<C, Rest...>
+template <CommandLike C, CommandLike... Rest> struct UniqueIds<C, Rest...>
     : std::bool_constant<((cmdId<C>() != cmdId<Rest>()) && ...) && UniqueIds<Rest...>::value>
 {};
 } // namespace command_helpers
@@ -69,8 +69,7 @@ template <CommandLike... Commands> class Handler final
      * @param data Raw byte data containing the command ID and payload
      * @return std::vector<std::vector<std::uint8_t>> Vector of serialized
      * response messages
-     * @throws std::runtime_error if the data is empty or the command ID is
-     * unknown
+     * @throws std::runtime_error if the data is empty or the command ID is unknown
      */
     [[nodiscard]] static std::vector<std::vector<std::uint8_t>> execute(const std::vector<std::uint8_t>& data) {
         if (data.empty()) {
