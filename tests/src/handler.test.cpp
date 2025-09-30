@@ -87,7 +87,7 @@ class CommandA final : public Command<FormatA, ResponseFormat>
         r.id = ResponseFormat::ID;
         r.status = this->content().op;
         r.result = static_cast<std::uint16_t>(this->content().val + 1);
-        SentMessage<ResponseFormat> s{r};
+        const SentMessage s{r};
         std::vector<std::vector<std::uint8_t>> out;
         out.push_back(s.serialize());
         return out;
@@ -105,7 +105,7 @@ class CommandB final : public Command<FormatB, ResponseFormat>
         r.id = ResponseFormat::ID;
         r.status = this->content().code;
         r.result = static_cast<std::uint16_t>(this->content().x ^ 0x00FFu);
-        SentMessage<ResponseFormat> s{r};
+        const SentMessage s{r};
         std::vector<std::vector<std::uint8_t>> out;
         out.push_back(s.serialize());
         return out;
@@ -123,7 +123,7 @@ class CommandC final : public Command<FormatC, ResponseFormat>
         r.id = ResponseFormat::ID;
         r.status = this->content().flag;
         r.result = static_cast<std::uint16_t>(this->content().y);
-        SentMessage<ResponseFormat> s{r};
+        const SentMessage s{r};
         std::vector<std::vector<std::uint8_t>> out;
         out.push_back(s.serialize());
         return out;
@@ -135,10 +135,10 @@ namespace
 {
 struct FormatADuplicate
 {
-    static constexpr std::uint8_t ID = FormatA::ID; // same as A
+    [[maybe_unused]] static constexpr std::uint8_t ID = FormatA::ID; // same as A
     std::uint8_t id;
-    std::uint8_t dummy;
-    std::uint16_t v;
+    [[maybe_unused]] std::uint8_t dummy;
+    [[maybe_unused]] std::uint16_t v;
 };
 static_assert(std::is_standard_layout_v<FormatADuplicate>);
 static_assert(std::is_trivially_copyable_v<FormatADuplicate>);
@@ -148,13 +148,13 @@ static_assert(MessageFormatT<FormatADuplicate>);
 class CommandADuplicate final : public Command<FormatADuplicate, ResponseFormat>
 {
   public:
-    explicit CommandADuplicate(const std::vector<std::uint8_t>& raw) : Command<FormatADuplicate, ResponseFormat>(raw) {}
+    explicit CommandADuplicate(const std::vector<std::uint8_t>& raw) : Command(raw) {}
     [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
         ResponseFormat r{};
         r.id = ResponseFormat::ID;
         r.status = 0;
         r.result = 0;
-        SentMessage<ResponseFormat> s{r};
+        const SentMessage s{r};
         std::vector<std::vector<std::uint8_t>> out;
         out.push_back(s.serialize());
         return out;
@@ -212,8 +212,8 @@ static void resetCounters() {
 
 TEST(HandlerExecute, ThrowsOnEmpty) {
     resetCounters();
-    const std::vector<std::uint8_t> empty;
-    EXPECT_THROW((void)TestHandlerABC::execute(empty), std::runtime_error);
+    constexpr std::vector<std::uint8_t> EMPTY;
+    EXPECT_THROW((void)TestHandlerABC::execute(EMPTY), std::runtime_error);
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
     EXPECT_EQ(constructed_c, 0);
@@ -222,9 +222,9 @@ TEST(HandlerExecute, ThrowsOnEmpty) {
 TEST(HandlerExecute, ThrowsOnUnknownId) {
     resetCounters();
 
-    const std::uint8_t unknown_id = 0x7F;
+    constexpr std::uint8_t UNKNOWN_ID = 0x7F;
     std::vector<std::uint8_t> data;
-    data.push_back(unknown_id);
+    data.push_back(UNKNOWN_ID);
     data.push_back(0x00);
     data.push_back(0x00);
     data.push_back(0x00);
@@ -237,13 +237,13 @@ TEST(HandlerExecute, ThrowsOnUnknownId) {
 TEST(HandlerExecute, DispatchesToMatchingCommandLeftToRight) {
     resetCounters();
 
-    FormatB b{
+    constexpr FormatB B{
         .id = FormatB::ID,
         .code = 0x3C,
         .x = 0x0123,
     };
 
-    const std::vector<std::uint8_t> raw_b = toBytes(b);
+    const std::vector<std::uint8_t> raw_b = toBytes(B);
     const std::vector<std::vector<std::uint8_t>> frames = TestHandlerABC::execute(raw_b);
 
     EXPECT_EQ(constructed_a, 0);
@@ -252,10 +252,10 @@ TEST(HandlerExecute, DispatchesToMatchingCommandLeftToRight) {
 
     ResponseFormat expected{};
     expected.id = ResponseFormat::ID;
-    expected.status = b.code;
-    expected.result = static_cast<std::uint16_t>(b.x ^ 0x00FFu);
+    expected.status = B.code;
+    expected.result = static_cast<std::uint16_t>(B.x ^ 0x00FFu);
 
-    const std::vector<std::uint8_t> expected_bytes = SentMessage<ResponseFormat>{expected}.serialize();
+    const std::vector<std::uint8_t> expected_bytes = SentMessage{expected}.serialize();
     ASSERT_EQ(frames.size(), static_cast<std::size_t>(1));
     EXPECT_EQ(frames[0], expected_bytes);
 }
@@ -263,9 +263,9 @@ TEST(HandlerExecute, DispatchesToMatchingCommandLeftToRight) {
 TEST(HandlerExecute, DispatchesToMatchingCommandAnyOrder) {
     resetCounters();
 
-    FormatC c{.id = FormatC::ID, .flag = 0xAA, .y = 0xBEEF};
+    constexpr FormatC C{.id = FormatC::ID, .flag = 0xAA, .y = 0xBEEF};
 
-    const std::vector<std::uint8_t> raw_c = toBytes(c);
+    const std::vector<std::uint8_t> raw_c = toBytes(C);
     const std::vector<std::vector<std::uint8_t>> frames = TestHandlerCBA::execute(raw_c);
 
     EXPECT_EQ(constructed_a, 0);
@@ -274,10 +274,10 @@ TEST(HandlerExecute, DispatchesToMatchingCommandAnyOrder) {
 
     ResponseFormat expected{};
     expected.id = ResponseFormat::ID;
-    expected.status = c.flag;
-    expected.result = static_cast<std::uint16_t>(c.y);
+    expected.status = C.flag;
+    expected.result = C.y;
 
-    const std::vector<std::uint8_t> expected_bytes = SentMessage<ResponseFormat>{expected}.serialize();
+    const std::vector<std::uint8_t> expected_bytes = SentMessage{expected}.serialize();
     ASSERT_EQ(frames.size(), static_cast<std::size_t>(1));
     EXPECT_EQ(frames[0], expected_bytes);
 }
@@ -306,7 +306,7 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     expected_a.id = ResponseFormat::ID;
     expected_a.status = a.op;
     expected_a.result = static_cast<std::uint16_t>(a.val + 1);
-    const std::vector<std::uint8_t> expected_bytes_a = SentMessage<ResponseFormat>{expected_a}.serialize();
+    const std::vector<std::uint8_t> expected_bytes_a = SentMessage{expected_a}.serialize();
     ASSERT_EQ(frames_a.size(), static_cast<std::size_t>(1));
     EXPECT_EQ(frames_a[0], expected_bytes_a);
 
@@ -319,7 +319,7 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     expected_b.id = ResponseFormat::ID;
     expected_b.status = b.code;
     expected_b.result = static_cast<std::uint16_t>(b.x ^ 0x00FFu);
-    const std::vector<std::uint8_t> expected_bytes_b = SentMessage<ResponseFormat>{expected_b}.serialize();
+    const std::vector<std::uint8_t> expected_bytes_b = SentMessage{expected_b}.serialize();
     ASSERT_EQ(frames_b.size(), static_cast<std::size_t>(1));
     EXPECT_EQ(frames_b[0], expected_bytes_b);
 
@@ -331,8 +331,8 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     ResponseFormat expected_c{};
     expected_c.id = ResponseFormat::ID;
     expected_c.status = c.flag;
-    expected_c.result = static_cast<std::uint16_t>(c.y);
-    const std::vector<std::uint8_t> expected_bytes_c = SentMessage<ResponseFormat>{expected_c}.serialize();
+    expected_c.result = c.y;
+    const std::vector<std::uint8_t> expected_bytes_c = SentMessage{expected_c}.serialize();
     ASSERT_EQ(frames_c.size(), static_cast<std::size_t>(1));
     EXPECT_EQ(frames_c[0], expected_bytes_c);
 
@@ -341,7 +341,6 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     EXPECT_EQ(constructed_a, 2);
     EXPECT_EQ(constructed_b, 1);
     EXPECT_EQ(constructed_c, 1);
-    ResponseFormat expected_a_bis{};
     ASSERT_EQ(frames_a_bis.size(), static_cast<std::size_t>(1));
     EXPECT_EQ(frames_a_bis[0], expected_bytes_a);
 }

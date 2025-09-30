@@ -45,7 +45,7 @@ template <typename T> concept MessageFormatT =
         requires UnsignedByte<std::remove_cvref_t<decltype(x.id)>>;
         requires std::is_lvalue_reference_v<decltype((x.id))>;
     } && std::is_standard_layout_v<T> && // layout precondition for using offsetof
-    offsetof(T, id) == 0;              // id must be the very first member
+    offsetof(T, id) == 0;                // id must be the very first member
 
 /* ―――――――――――――――― Classes ―――――――――――――――― */
 

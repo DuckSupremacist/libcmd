@@ -100,11 +100,11 @@ TEST(SentMessageTests, SerializeMatchesStructMemory) {
     payload.a = 0xAB;
     payload.b = 0xCDEF;
 
-    SentGoodMessage msg{payload};
+    const SentGoodMessage msg{payload};
 
     // Act
-    std::vector<std::uint8_t> bytes = msg.serialize();
-    std::vector<std::uint8_t> expected = toBytes(payload);
+    const std::vector<std::uint8_t> bytes = msg.serialize();
+    const std::vector<std::uint8_t> expected = toBytes(payload);
 
     // Assert
     ASSERT_EQ(bytes.size(), sizeof(GoodFormat));
@@ -127,7 +127,7 @@ TEST(ReceivedMessageTests, ConstructFromRawBytesRoundTrips) {
     const std::vector<std::uint8_t> raw = toBytes(original);
 
     // Act
-    ReceivedGoodMessage msg{raw};
+    const ReceivedGoodMessage msg{raw};
 
     // Assert: content equals original (byte-for-byte)
     EXPECT_EQ(toBytes(msg.content()), toBytes(original));
@@ -141,12 +141,12 @@ TEST(ReceivedMessageTests, ConstructFromRawBytesRoundTrips) {
 
 TEST(ReceivedMessageTests, ThrowsOnWrongSize) {
     // Too small
-    std::vector<std::uint8_t> bad_small(sizeof(GoodFormat) - 1, 0);
+    const std::vector<std::uint8_t> bad_small(sizeof(GoodFormat) - 1, 0);
     // Too big
-    std::vector<std::uint8_t> bad_big(sizeof(GoodFormat) + 1, 0);
+    const std::vector<std::uint8_t> bad_big(sizeof(GoodFormat) + 1, 0);
 
-    EXPECT_THROW((ReceivedGoodMessage{bad_small}), std::runtime_error);
-    EXPECT_THROW((ReceivedGoodMessage{bad_big}), std::runtime_error);
+    EXPECT_THROW(ReceivedGoodMessage{bad_small}, std::runtime_error);
+    EXPECT_THROW(ReceivedGoodMessage{bad_big}, std::runtime_error);
 }
 
 TEST(Polymorphism, BasePointersWork) {
@@ -156,9 +156,9 @@ TEST(Polymorphism, BasePointersWork) {
     payload.a = 0x55;
     payload.b = 0xAA55;
 
-    SentMessage<GoodFormat> sm{payload};
-    Message<GoodFormat>* base = &sm;
-    std::vector<std::uint8_t> bytes = base->serialize();
+    const SentMessage sm{payload};
+    const Message<GoodFormat>* base = &sm;
+    const std::vector<std::uint8_t> bytes = base->serialize();
     ASSERT_EQ(bytes.size(), sizeof(GoodFormat));
 
     // The first byte should be the ID by contract

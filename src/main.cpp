@@ -173,8 +173,8 @@ using Handler123 = Handler<Command1, Command2, Command3>;
 
 /* ―――――――――――――――― Main ―――――――――――――――― */
 
-static bool isHexChar(char c) {
-    unsigned char uc = static_cast<unsigned char>(c);
+static bool isHexChar(const char c) {
+    const unsigned char uc = static_cast<unsigned char>(c);
     return std::isxdigit(uc) != 0;
 }
 
@@ -193,7 +193,7 @@ int main() {
 
         // Validate: only hex digits and even length
         bool all_hex = true;
-        for (char i : line) {
+        for (const char i : line) {
             if (!isHexChar(i)) {
                 all_hex = false;
                 break;
@@ -203,7 +203,7 @@ int main() {
             std::cerr << "Error: input must be contiguous hex digits only (0-9, a-f, A-F)." << std::endl;
             continue;
         }
-        if ((line.size() % 2) != 0) {
+        if (line.size() % 2 != 0) {
             std::cerr << "Error: odd number of hex digits; pad with a leading 0." << std::endl;
             continue;
         }
@@ -213,7 +213,7 @@ int main() {
         data.reserve(line.size() / 2);
         for (std::size_t i = 0; i < line.size(); i += 2) {
             const std::string byte_str = line.substr(i, 2);
-            data.push_back(static_cast<std::uint8_t>(static_cast<std::uint8_t>(std::stoul(byte_str, nullptr, 16))));
+            data.push_back(static_cast<std::uint8_t>(std::stoul(byte_str, nullptr, 16)));
         }
 
         try {
@@ -223,7 +223,7 @@ int main() {
             // Print responses as hex
             for (const std::vector<std::uint8_t>& response : responses) {
                 std::cout << "Response: 0x";
-                for (std::uint8_t b : response) {
+                for (const std::uint8_t b : response) {
                     std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
                 }
                 std::cout << std::dec << std::endl; // reset to decimal
