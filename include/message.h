@@ -79,6 +79,9 @@ template <MessageFormatT MessageFormat> class Message
         if (content.size() != sizeof(MessageFormat)) { // TODO: handle structs with flexible array member?
             throw std::runtime_error("Invalid content size");
         }
+        if (content.at(0) != MessageFormat::ID) {
+            throw std::runtime_error("Invalid ID");
+        }
         std::memcpy(&_content, content.data(), sizeof(MessageFormat));
     }
 

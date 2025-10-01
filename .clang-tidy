@@ -35,6 +35,7 @@ Checks: >
   llvm-header-guard,
   llvm-else-after-return,
 
+  misc-const-correctness,
   misc-unconventional-assign-operator,
   misc-misplaced-const,
   misc-new-delete-overloads,

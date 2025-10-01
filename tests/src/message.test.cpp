@@ -149,6 +149,17 @@ TEST(ReceivedMessageTests, ThrowsOnWrongSize) {
     EXPECT_THROW(ReceivedGoodMessage{bad_big}, std::runtime_error);
 }
 
+TEST(ReceivedMessageTests, ThrowsOnWrongID) {
+    // Correct size but wrong ID
+    GoodFormat bad_id{};
+    bad_id.id = GoodFormat::ID + 1; // wrong ID
+    bad_id.a = 0;
+    bad_id.b = 0;
+    const std::vector<std::uint8_t> raw = toBytes(bad_id);
+
+    EXPECT_THROW(ReceivedGoodMessage{raw}, std::runtime_error);
+}
+
 TEST(Polymorphism, BasePointersWork) {
     // Smoke test: ensure proper inheritance and virtual destructor do not crash
     GoodFormat payload{};
