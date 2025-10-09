@@ -1,6 +1,7 @@
 #pragma once
 
 #include "command.h"
+#include <functional>
 #include <stdexcept>
 
 /* ―――――――――――――――― Concepts ―――――――――――――――― */
@@ -48,6 +49,9 @@ template <CommandLike C, CommandLike... Rest> struct UniqueIds<C, Rest...>
 {};
 } // namespace command_helpers
 
+/** @brief Type alias for serialized message array format */
+using serialized_message_array_t = std::vector<serialized_message_t>;
+
 /* ―――――――――――――――― Classes ―――――――――――――――― */
 
 /**
@@ -65,28 +69,51 @@ template <CommandLike... Commands> class Handler final
 
   public:
     /**
+     * @brief Enumeration representing the status of command execution
+     */
+    enum EXECUTE_STATUS : std::uint8_t
+    {
+        SUCCESS = 0,
+        ERROR_ID_NOT_FOUND = 1,
+        ERROR_WRONG_MESSAGE_FORMAT = 2,
+        ERROR_COMMAND_FAILED = 3,
+    };
+
+    /**
      * @brief Executes the appropriate command based on incoming data
      * @param data Raw byte data containing the command ID and payload
-     * @return std::vector<std::vector<std::uint8_t>> Vector of serialized
-     * response messages
+     * @param send_response_callback Callback function to send the response data
+     * @return EXECUTE_STATUS The status of the command execution
      * @throws std::runtime_error if the data is empty or the command ID is unknown
      */
-    [[nodiscard]] static std::vector<std::vector<std::uint8_t>> execute(const std::vector<std::uint8_t>& data) {
+    [[nodiscard]] static EXECUTE_STATUS execute(
+        const serialized_message_t& data, const std::function<void(const serialized_message_t&)>& send_response_callback
+    ) {
         if (data.empty()) {
-            throw std::runtime_error("Empty message");
+            return EXECUTE_STATUS::ERROR_WRONG_MESSAGE_FORMAT;
         }
 
         const std::uint8_t id = data.front();
-        std::vector<std::vector<std::uint8_t>> out;
+        serialized_message_array_t out;
 
         // Short-circuit fold: constructs and execute only the matching command
-        const bool matched =
-            ((id == command_helpers::cmdId<Commands>() && (out = Commands{data}.execute(), true)) || ...);
-
-        if (!matched) {
-            throw std::runtime_error("Unknown command ID");
+        try {
+            const bool matched =
+                ((id == command_helpers::cmdId<Commands>() && (out = Commands{data}.execute(), true)) || ...);
+            if (!matched) {
+                return EXECUTE_STATUS::ERROR_ID_NOT_FOUND;
+            }
+        }
+        catch (const std::exception& e) {
+            // TODO: handle different exception types differently
+            return EXECUTE_STATUS::ERROR_WRONG_MESSAGE_FORMAT;
         }
 
-        return out;
+        // Send all response messages
+        for (const serialized_message_t& msg : out) {
+            // TODO: send asynchronously from Command::execute()
+            send_response_callback(msg);
+        }
+        return EXECUTE_STATUS::SUCCESS;
     }
 };

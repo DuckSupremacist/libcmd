@@ -48,6 +48,9 @@ template <typename T> concept MessageFormatT =
     } && std::is_standard_layout_v<T> && // layout precondition for using offsetof
     offsetof(T, id) == 0;                // id must be the very first member
 
+/** @brief Type alias for the serialized message format */
+using serialized_message_t = std::vector<std::uint8_t>;
+
 /* ―――――――――――――――― Classes ―――――――――――――――― */
 
 /**
@@ -93,10 +96,10 @@ template <MessageFormatT MessageFormat> class Message
 
     /** @brief Serializes the message content into a byte vector
      *
-     * @return std::vector<std::uint8_t> Serialized byte vector of the message
+     * @return serialized_message_t Serialized byte vector of the message
      *content
      **/
-    [[nodiscard]] virtual std::vector<std::uint8_t> serialize() const {
+    [[nodiscard]] virtual serialized_message_t serialize() const {
         return {
             reinterpret_cast<const std::uint8_t*>(&_content),
             reinterpret_cast<const std::uint8_t*>(&_content) + sizeof(MessageFormat)
@@ -126,7 +129,7 @@ template <MessageFormatT ReceivedMessageFormat> class ReceivedMessage : public M
      * @param content Raw byte content of the received message
      * @throws std::runtime_error if content size is invalid
      **/
-    explicit ReceivedMessage(const std::vector<std::uint8_t>& content) : Message<ReceivedMessageFormat>(content) {}
+    explicit ReceivedMessage(const serialized_message_t& content) : Message<ReceivedMessageFormat>(content) {}
 };
 
 /**

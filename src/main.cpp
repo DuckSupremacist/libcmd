@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
-#include <vector>
 
 /* ―――――――――――――――― Messages format ―――――――――――――――― */
 
@@ -90,15 +89,15 @@ struct Command1 final : Command<ReceivedMessageFormat1, SentMessageFormat1>
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
      **/
-    explicit Command1(const std::vector<std::uint8_t>& content) : Command(content) {}
+    explicit Command1(const serialized_message_t& content) : Command(content) {}
 
     /**
      * @brief Executes the command associated with this message
      *
-     * @return std::vector<std::vector<std::uint8_t>> The response message after
+     * @return serialized_message_array_t The response message after
      * executing the command
      */
-    [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
+    [[nodiscard]] serialized_message_array_t execute() const override {
         // Dummy implementation
         return {output_message_t({
                                      .id = this->content().id,
@@ -120,15 +119,15 @@ struct Command2 final : Command<ReceivedMessageFormat2, SentMessageFormat2>
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
      **/
-    explicit Command2(const std::vector<std::uint8_t>& content) : Command(content) {}
+    explicit Command2(const serialized_message_t& content) : Command(content) {}
 
     /**
      * @brief Executes the command associated with this message
      *
-     * @return std::vector<std::vector<std::uint8_t>> The response message after
+     * @return serialized_message_array_t The response message after
      * executing the command
      */
-    [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
+    [[nodiscard]] serialized_message_array_t execute() const override {
         // Dummy implementation
         return {output_message_t({
                                      .id = this->content().id,
@@ -150,15 +149,15 @@ struct Command3 final : Command<ReceivedMessageFormat3, SentMessageFormat3>
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
      **/
-    explicit Command3(const std::vector<std::uint8_t>& content) : Command(content) {}
+    explicit Command3(const serialized_message_t& content) : Command(content) {}
 
     /**
      * @brief Executes the command associated with this message
      *
-     * @return std::vector<std::vector<std::uint8_t>> The response message after
+     * @return serialized_message_array_t The response message after
      * executing the command
      */
-    [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
+    [[nodiscard]] serialized_message_array_t execute() const override {
         // Dummy implementation
         return {output_message_t({
                                      .id = this->content().id,
@@ -178,7 +177,17 @@ static bool isHexChar(const char c) {
     return std::isxdigit(uc) != 0;
 }
 
+static void printResponse(const serialized_message_t& response) {
+    std::cout << "Response: 0x";
+    for (const std::uint8_t b : response) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
+    }
+    std::cout << std::dec << std::endl; // reset to decimal
+}
+
 int main() {
+    std::cout << "Command Handler Test Program" << std::endl;
+    std::cout << "Enter 'q' to quit." << std::endl;
     while (true) {
         std::string line;
         std::cout << "Enter hex bytes (contiguous, e.g., 0105): ";
@@ -186,8 +195,8 @@ int main() {
             break;
         }
 
-        // Quit on empty input
-        if (line.empty()) {
+        // Quit when received 'q'
+        if (line == "q") {
             break;
         }
 
@@ -209,28 +218,20 @@ int main() {
         }
 
         // Convert contiguous hex string to bytes
-        std::vector<std::uint8_t> data;
+        serialized_message_t data;
         data.reserve(line.size() / 2);
         for (std::size_t i = 0; i < line.size(); i += 2) {
             const std::string byte_str = line.substr(i, 2);
             data.push_back(static_cast<std::uint8_t>(std::stoul(byte_str, nullptr, 16)));
         }
 
-        try {
-            // Execute handler
-            const std::vector<std::vector<std::uint8_t>> responses = Handler123::execute(data);
-
-            // Print responses as hex
-            for (const std::vector<std::uint8_t>& response : responses) {
-                std::cout << "Response: 0x";
-                for (const std::uint8_t b : response) {
-                    std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
-                }
-                std::cout << std::dec << std::endl; // reset to decimal
-            }
+        // Execute handler
+        const Handler123::EXECUTE_STATUS status = Handler123::execute(data, printResponse);
+        if (status != Handler123::EXECUTE_STATUS::SUCCESS) {
+            std::cerr << "Error: command execution failed with status " << static_cast<int>(status) << std::endl;
         }
-        catch (const std::exception& e) {
-            std::cerr << "Error: " << e.what() << std::endl;
+        else {
+            std::cout << "Command executed successfully." << std::endl;
         }
     }
     return 0;

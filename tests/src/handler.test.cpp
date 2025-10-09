@@ -17,6 +17,20 @@ template <typename T> static std::vector<std::uint8_t> toBytes(const T& obj) {
     return bytes;
 }
 
+/**
+ * @brief Returns a function that appends serialized messages to the provided array.
+ * Usage:
+ *     serialized_message_array_t responses;
+ *     auto store = storeResponses(responses);
+ *     // pass `store` to a fucntion that takes std::function<void(const serialized_message_t&)>
+ *
+ * @param out Reference to the array where responses will be stored
+ * @return std::function<void(const serialized_message_t&)> Function that appends messages to `out`
+ */
+static std::function<void(const serialized_message_t&)> storeResponses(serialized_message_array_t& out) {
+    return [&out](const serialized_message_t& bytes) { out.push_back(bytes); };
+}
+
 /* ───────────────────────── Message Formats ───────────────────────── */
 
 struct FormatA
@@ -213,7 +227,11 @@ static void resetCounters() {
 TEST(HandlerExecute, ThrowsOnEmpty) {
     resetCounters();
     const std::vector<std::uint8_t> empty;
-    EXPECT_THROW((void)TestHandlerABC::execute(empty), std::runtime_error);
+    serialized_message_array_t out;
+    EXPECT_EQ(
+        TestHandlerABC::execute(empty, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::ERROR_WRONG_MESSAGE_FORMAT
+    );
+    EXPECT_EQ(out.size(), 0);
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
     EXPECT_EQ(constructed_c, 0);
@@ -228,7 +246,9 @@ TEST(HandlerExecute, ThrowsOnUnknownId) {
     data.push_back(0x00);
     data.push_back(0x00);
     data.push_back(0x00);
-    EXPECT_THROW((void)TestHandlerABC::execute(data), std::runtime_error);
+    serialized_message_array_t out;
+    EXPECT_EQ(TestHandlerABC::execute(data, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::ERROR_ID_NOT_FOUND);
+    EXPECT_EQ(out.size(), 0);
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
     EXPECT_EQ(constructed_c, 0);
@@ -244,7 +264,9 @@ TEST(HandlerExecute, DispatchesToMatchingCommandLeftToRight) {
     };
 
     const std::vector<std::uint8_t> raw_b = toBytes(B);
-    const std::vector<std::vector<std::uint8_t>> frames = TestHandlerABC::execute(raw_b);
+
+    serialized_message_array_t out;
+    EXPECT_EQ(TestHandlerABC::execute(raw_b, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
 
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 1);
@@ -256,8 +278,8 @@ TEST(HandlerExecute, DispatchesToMatchingCommandLeftToRight) {
     expected.result = static_cast<std::uint16_t>(B.x ^ 0x00FFu);
 
     const std::vector<std::uint8_t> expected_bytes = SentMessage{expected}.serialize();
-    ASSERT_EQ(frames.size(), static_cast<std::size_t>(1));
-    EXPECT_EQ(frames[0], expected_bytes);
+    EXPECT_EQ(out.size(), 1);
+    EXPECT_EQ(out[0], expected_bytes);
 }
 
 TEST(HandlerExecute, DispatchesToMatchingCommandAnyOrder) {
@@ -266,7 +288,9 @@ TEST(HandlerExecute, DispatchesToMatchingCommandAnyOrder) {
     constexpr FormatC C{.id = FormatC::ID, .flag = 0xAA, .y = 0xBEEF};
 
     const std::vector<std::uint8_t> raw_c = toBytes(C);
-    const std::vector<std::vector<std::uint8_t>> frames = TestHandlerCBA::execute(raw_c);
+
+    serialized_message_array_t out;
+    EXPECT_EQ(TestHandlerABC::execute(raw_c, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
 
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
@@ -278,8 +302,8 @@ TEST(HandlerExecute, DispatchesToMatchingCommandAnyOrder) {
     expected.result = C.y;
 
     const std::vector<std::uint8_t> expected_bytes = SentMessage{expected}.serialize();
-    ASSERT_EQ(frames.size(), static_cast<std::size_t>(1));
-    EXPECT_EQ(frames[0], expected_bytes);
+    ASSERT_EQ(out.size(), 1);
+    EXPECT_EQ(out[0], expected_bytes);
 }
 
 TEST(HandlerExecute, DispatchesMultipleCommands) {
@@ -298,7 +322,8 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     const std::vector<std::uint8_t> raw_c = toBytes(c);
 
     // Execute A
-    const std::vector<std::vector<std::uint8_t>> frames_a = TestHandlerABC::execute(raw_a);
+    serialized_message_array_t out;
+    EXPECT_EQ(TestHandlerABC::execute(raw_a, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
     EXPECT_EQ(constructed_a, 1);
     EXPECT_EQ(constructed_b, 0);
     EXPECT_EQ(constructed_c, 0);
@@ -307,11 +332,12 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     expected_a.status = a.op;
     expected_a.result = static_cast<std::uint16_t>(a.val + 1);
     const std::vector<std::uint8_t> expected_bytes_a = SentMessage{expected_a}.serialize();
-    ASSERT_EQ(frames_a.size(), static_cast<std::size_t>(1));
-    EXPECT_EQ(frames_a[0], expected_bytes_a);
+    ASSERT_EQ(out.size(), static_cast<std::size_t>(1));
+    EXPECT_EQ(out[0], expected_bytes_a);
 
     // Execute B
-    const std::vector<std::vector<std::uint8_t>> frames_b = TestHandlerABC::execute(raw_b);
+    out.clear();
+    EXPECT_EQ(TestHandlerABC::execute(raw_b, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
     EXPECT_EQ(constructed_a, 1);
     EXPECT_EQ(constructed_b, 1);
     EXPECT_EQ(constructed_c, 0);
@@ -320,11 +346,12 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     expected_b.status = b.code;
     expected_b.result = static_cast<std::uint16_t>(b.x ^ 0x00FFu);
     const std::vector<std::uint8_t> expected_bytes_b = SentMessage{expected_b}.serialize();
-    ASSERT_EQ(frames_b.size(), static_cast<std::size_t>(1));
-    EXPECT_EQ(frames_b[0], expected_bytes_b);
+    ASSERT_EQ(out.size(), static_cast<std::size_t>(1));
+    EXPECT_EQ(out[0], expected_bytes_b);
 
     // Execute C
-    const std::vector<std::vector<std::uint8_t>> frames_c = TestHandlerABC::execute(raw_c);
+    out.clear();
+    EXPECT_EQ(TestHandlerABC::execute(raw_c, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
     EXPECT_EQ(constructed_a, 1);
     EXPECT_EQ(constructed_b, 1);
     EXPECT_EQ(constructed_c, 1);
@@ -333,14 +360,15 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     expected_c.status = c.flag;
     expected_c.result = c.y;
     const std::vector<std::uint8_t> expected_bytes_c = SentMessage{expected_c}.serialize();
-    ASSERT_EQ(frames_c.size(), static_cast<std::size_t>(1));
-    EXPECT_EQ(frames_c[0], expected_bytes_c);
+    ASSERT_EQ(out.size(), static_cast<std::size_t>(1));
+    EXPECT_EQ(out[0], expected_bytes_c);
 
     // Execute A
-    const std::vector<std::vector<std::uint8_t>> frames_a_bis = TestHandlerABC::execute(raw_a);
+    out.clear();
+    EXPECT_EQ(TestHandlerABC::execute(raw_a, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
     EXPECT_EQ(constructed_a, 2);
     EXPECT_EQ(constructed_b, 1);
     EXPECT_EQ(constructed_c, 1);
-    ASSERT_EQ(frames_a_bis.size(), static_cast<std::size_t>(1));
-    EXPECT_EQ(frames_a_bis[0], expected_bytes_a);
+    ASSERT_EQ(out.size(), static_cast<std::size_t>(1));
+    EXPECT_EQ(out[0], expected_bytes_a);
 }
