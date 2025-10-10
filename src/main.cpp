@@ -2,6 +2,7 @@
 #include "handler.h"
 #include "message.h"
 #include <cstdint>
+#include <generator>
 #include <iomanip>
 #include <iostream>
 
@@ -170,40 +171,25 @@ struct Command3 final : Command<ReceivedMessageFormat3, SentMessageFormat3>
 
 using Handler123 = Handler<Command1, Command2, Command3>;
 
-/* ―――――――――――――――― Main ―――――――――――――――― */
-
-static bool isHexChar(const char c) {
-    const unsigned char uc = static_cast<unsigned char>(c);
-    return std::isxdigit(uc) != 0;
-}
-
-static void printResponse(const serialized_message_t& response) {
-    std::cout << "Response: 0x";
-    for (const std::uint8_t b : response) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
-    }
-    std::cout << std::dec << std::endl; // reset to decimal
-}
-
-int main() {
-    std::cout << "Command Handler Test Program" << std::endl;
+/* ―――――――――――――――― Helpers ―――――――――――――――― */
+static std::generator<serialized_message_t> inputMessage() {
     std::cout << "Enter 'q' to quit." << std::endl;
     while (true) {
         std::string line;
         std::cout << "Enter hex bytes (contiguous, e.g., 0105): ";
         if (!std::getline(std::cin, line)) {
-            break;
+            exit(1);
         }
 
         // Quit when received 'q'
         if (line == "q") {
-            break;
+            exit(0);
         }
 
         // Validate: only hex digits and even length
         bool all_hex = true;
         for (const char i : line) {
-            if (!isHexChar(i)) {
+            if (!std::isxdigit(static_cast<unsigned char>(i))) {
                 all_hex = false;
                 break;
             }
@@ -224,9 +210,27 @@ int main() {
             const std::string byte_str = line.substr(i, 2);
             data.push_back(static_cast<std::uint8_t>(std::stoul(byte_str, nullptr, 16)));
         }
+        co_yield data;
+    }
+}
 
+static void printResponse(const serialized_message_t& response) {
+    std::cout << "Response: 0x";
+    for (const std::uint8_t b : response) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
+    }
+    std::cout << std::dec << std::endl; // reset to decimal
+}
+
+/* ―――――――――――――――― Main ―――――――――――――――― */
+
+int main() {
+    std::cout << "Command Handler Test Program" << std::endl;
+    for (const serialized_message_t& data : inputMessage()) {
         // Execute handler
         const Handler123::EXECUTE_STATUS status = Handler123::execute(data, printResponse);
+
+        // Report status
         if (status != Handler123::EXECUTE_STATUS::SUCCESS) {
             std::cerr << "Error: command execution failed with status " << static_cast<int>(status) << std::endl;
         }

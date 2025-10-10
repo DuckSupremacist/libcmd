@@ -178,7 +178,7 @@ class CommandADuplicate final : public Command<FormatADuplicate, ResponseFormat>
 
 /* ───────────────────────── Concept: CommandLike ───────────────────────── */
 
-TEST(Concepts, CommandLike_PositiveNegative) {
+TEST(HandlerConcepts, CommandLike) {
     static_assert(CommandLike<CommandA>, "CommandA should satisfy CommandLike");
     static_assert(CommandLike<CommandB>, "CommandB should satisfy CommandLike");
     static_assert(CommandLike<CommandC>, "CommandC should satisfy CommandLike");
@@ -196,7 +196,7 @@ TEST(Concepts, CommandLike_PositiveNegative) {
 
 /* ───────────────────────── Helpers: CommandId & UniqueIds ───────────────────────── */
 
-TEST(Helpers, CommandIdExtractsStaticID) {
+TEST(HandlerHelpers, CommandIdExtractsStaticID) {
     EXPECT_EQ(command_helpers::cmdId<CommandA>(), FormatA::ID);
     EXPECT_EQ(command_helpers::cmdId<CommandB>(), FormatB::ID);
     EXPECT_EQ(command_helpers::cmdId<CommandC>(), FormatC::ID);

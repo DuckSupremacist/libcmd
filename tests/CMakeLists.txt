@@ -1,3 +1,5 @@
+# ―――――――――――――――― Fetch GTest ―――――――――――――――― #
+
 include(FetchContent)
 
 set(GTEST_TAG v1.17.0)
@@ -12,9 +14,7 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 include(GoogleTest)
 
-# ######################################################################################################################
-
-set(CMAKE_CXX_STANDARD 23)
+# ―――――――――――――――― Build the tests ―――――――――――――――― #
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/include

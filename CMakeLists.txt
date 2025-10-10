@@ -1,4 +1,8 @@
+# ―――――――――――――――― Configure CMake ―――――――――――――――― #
 cmake_minimum_required(VERSION 3.22)
+
+set(CMAKE_C_COMPILER /usr/bin/gcc-14)
+set(CMAKE_CXX_COMPILER /usr/bin/g++-14)
 
 set(PROJECT_NAME libcmd)
 project(
@@ -7,13 +11,15 @@ project(
     LANGUAGES CXX
 )
 
-set(EXEC_NAME example)
-
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
+
+# ―――――――――――――――― Build the Project ―――――――――――――――― #
+
+set(EXEC_NAME example)
 
 file(
     GLOB_RECURSE
@@ -39,7 +45,8 @@ target_compile_options(
            -Werror
 )
 
-# Option to build tests
+# ―――――――――――――――― Build the tests ―――――――――――――――― #
+
 option(
     BUILD_TESTS
     "Build the tests"

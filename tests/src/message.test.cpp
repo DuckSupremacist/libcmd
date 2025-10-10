@@ -67,7 +67,7 @@ struct BadStaticIdEnum
     std::uint8_t id;
 };
 
-TEST(Concepts, UnsignedByte) {
+TEST(MessageConcepts, UnsignedByte) {
     static_assert(UnsignedByte<std::uint8_t>);
     static_assert(!UnsignedByte<std::uint16_t>);
     static_assert(!UnsignedByte<std::int8_t>);
@@ -75,7 +75,7 @@ TEST(Concepts, UnsignedByte) {
     SUCCEED();
 }
 
-TEST(Concepts, MessageFormatT) {
+TEST(MessageConcepts, MessageFormatT) {
     static_assert(MessageFormatT<GoodFormat>, "GoodFormat should satisfy MessageFormatT");
 
     static_assert(!MessageFormatT<BadNoId>, "Missing non-static member `id`");
@@ -93,7 +93,7 @@ using SentGoodMessage = SentMessage<GoodFormat>;
 
 /* ―――――――――――――――― Runtime tests ―――――――――――――――― */
 
-TEST(SentMessageTests, SerializeMatchesStructMemory) {
+TEST(SentMessage, SerializeMatchesStructMemory) {
     // Arrange
     GoodFormat payload{};
     payload.id = GoodFormat::ID;
@@ -118,7 +118,7 @@ TEST(SentMessageTests, SerializeMatchesStructMemory) {
     EXPECT_EQ(msg.content().b, 0xCDEF);
 }
 
-TEST(ReceivedMessageTests, ConstructFromRawBytesRoundTrips) {
+TEST(ReceivedMessage, ConstructFromRawBytesRoundTrips) {
     // Arrange: create raw bytes representing a GoodFormat
     GoodFormat original{};
     original.id = GoodFormat::ID;
@@ -139,7 +139,7 @@ TEST(ReceivedMessageTests, ConstructFromRawBytesRoundTrips) {
     EXPECT_EQ(msg.serialize(), raw);
 }
 
-TEST(ReceivedMessageTests, ThrowsOnWrongSize) {
+TEST(ReceivedMessage, ThrowsOnWrongSize) {
     // Too small
     const std::vector<std::uint8_t> bad_small(sizeof(GoodFormat) - 1, 0);
     // Too big
@@ -149,7 +149,7 @@ TEST(ReceivedMessageTests, ThrowsOnWrongSize) {
     EXPECT_THROW(ReceivedGoodMessage{bad_big}, std::runtime_error);
 }
 
-TEST(ReceivedMessageTests, ThrowsOnWrongID) {
+TEST(ReceivedMessage, ThrowsOnWrongID) {
     // Correct size but wrong ID
     GoodFormat bad_id{};
     bad_id.id = GoodFormat::ID + 1; // wrong ID
@@ -160,7 +160,7 @@ TEST(ReceivedMessageTests, ThrowsOnWrongID) {
     EXPECT_THROW(ReceivedGoodMessage{raw}, std::runtime_error);
 }
 
-TEST(Polymorphism, BasePointersWork) {
+TEST(MessagePolymorphism, BasePointersWork) {
     // Smoke test: ensure proper inheritance and virtual destructor do not crash
     GoodFormat payload{};
     payload.id = GoodFormat::ID;
