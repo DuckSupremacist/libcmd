@@ -202,7 +202,7 @@ TEST(HandlerHelpers, CommandIdExtractsStaticID) {
     EXPECT_EQ(command_helpers::cmdId<CommandC>(), FormatC::ID);
 }
 
-TEST(Helpers, UniqueIds_PositiveAndDuplicateDetection) {
+TEST(Helpers, UniqueIdsDetection) {
     // Distinct IDs => true
     EXPECT_TRUE((command_helpers::UniqueIds<CommandA, CommandB, CommandC>::value));
 
@@ -310,16 +310,16 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     resetCounters();
 
     // CommandA
-    FormatA a{.id = FormatA::ID, .op = 0x10, .val = 0x0011};
-    const std::vector<std::uint8_t> raw_a = toBytes(a);
+    constexpr FormatA A{.id = FormatA::ID, .op = 0x10, .val = 0x0011};
+    const std::vector<std::uint8_t> raw_a = toBytes(A);
 
     // CommandB
-    FormatB b{.id = FormatB::ID, .code = 0x20, .x = 0x0022};
-    const std::vector<std::uint8_t> raw_b = toBytes(b);
+    constexpr FormatB B{.id = FormatB::ID, .code = 0x20, .x = 0x0022};
+    const std::vector<std::uint8_t> raw_b = toBytes(B);
 
     // CommandC
-    FormatC c{.id = FormatC::ID, .flag = 0x30, .y = 0x0033};
-    const std::vector<std::uint8_t> raw_c = toBytes(c);
+    constexpr FormatC C{.id = FormatC::ID, .flag = 0x30, .y = 0x0033};
+    const std::vector<std::uint8_t> raw_c = toBytes(C);
 
     // Execute A
     serialized_message_array_t out;
@@ -329,8 +329,8 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     EXPECT_EQ(constructed_c, 0);
     ResponseFormat expected_a{};
     expected_a.id = ResponseFormat::ID;
-    expected_a.status = a.op;
-    expected_a.result = static_cast<std::uint16_t>(a.val + 1);
+    expected_a.status = A.op;
+    expected_a.result = static_cast<std::uint16_t>(A.val + 1);
     const std::vector<std::uint8_t> expected_bytes_a = SentMessage{expected_a}.serialize();
     ASSERT_EQ(out.size(), static_cast<std::size_t>(1));
     EXPECT_EQ(out[0], expected_bytes_a);
@@ -343,8 +343,8 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     EXPECT_EQ(constructed_c, 0);
     ResponseFormat expected_b{};
     expected_b.id = ResponseFormat::ID;
-    expected_b.status = b.code;
-    expected_b.result = static_cast<std::uint16_t>(b.x ^ 0x00FFu);
+    expected_b.status = B.code;
+    expected_b.result = static_cast<std::uint16_t>(B.x ^ 0x00FFu);
     const std::vector<std::uint8_t> expected_bytes_b = SentMessage{expected_b}.serialize();
     ASSERT_EQ(out.size(), static_cast<std::size_t>(1));
     EXPECT_EQ(out[0], expected_bytes_b);
@@ -357,8 +357,8 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     EXPECT_EQ(constructed_c, 1);
     ResponseFormat expected_c{};
     expected_c.id = ResponseFormat::ID;
-    expected_c.status = c.flag;
-    expected_c.result = c.y;
+    expected_c.status = C.flag;
+    expected_c.result = C.y;
     const std::vector<std::uint8_t> expected_bytes_c = SentMessage{expected_c}.serialize();
     ASSERT_EQ(out.size(), static_cast<std::size_t>(1));
     EXPECT_EQ(out[0], expected_bytes_c);

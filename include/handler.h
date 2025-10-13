@@ -24,7 +24,8 @@ template <typename C> concept CommandLike = requires(const std::vector<std::uint
  */
 namespace command_helpers
 {
-/** @brief Retrieves the command ID from a Command-like type at compile-time
+/**
+ * @brief Retrieves the command ID from a Command-like type at compile-time
  * @tparam C The Command-like type
  * @return std::uint8_t The command ID
  */
@@ -71,7 +72,7 @@ template <CommandLike... Commands> class Handler final
     /**
      * @brief Enumeration representing the status of command execution
      */
-    enum EXECUTE_STATUS : std::uint8_t
+    enum class EXECUTE_STATUS : std::uint8_t
     {
         SUCCESS = 0,
         ERROR_ID_NOT_FOUND = 1,

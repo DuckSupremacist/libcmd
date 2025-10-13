@@ -64,20 +64,22 @@ using serialized_message_t = std::vector<std::uint8_t>;
 template <MessageFormatT MessageFormat> class Message
 {
   protected:
+    // TODO: make const?
     MessageFormat _content; ///< Structured content of the message
-    // static_assert(std::is_trivially_copyable_v<MessageFormat>);
 
-    /** @brief Constructs a Message from structured content
+    /**
+     * @brief Constructs a Message from structured content
      *
      * @param content Structured content of the message
-     **/
+     */
     explicit Message(MessageFormat content) : _content(std::move(content)) {}
 
-    /** @brief Constructs a Message from raw byte input
+    /**
+     * @brief Constructs a Message from raw byte input
      *
      * @param content Raw byte content of the message
      * @throws std::runtime_error if content size is invalid
-     **/
+     */
     explicit Message(const std::vector<std::uint8_t>& content) {
         if (content.size() != sizeof(MessageFormat)) { // TODO: handle structs with flexible array member?
             throw std::runtime_error("Invalid content size");
@@ -88,17 +90,22 @@ template <MessageFormatT MessageFormat> class Message
         std::memcpy(&_content, content.data(), sizeof(MessageFormat));
     }
 
+    /**
+     * @brief Constructs a Message from raw byte input
+     */
+    explicit Message() = default;
+
   public:
     /** @brief Type alias for the message format */
     using message_format_t = MessageFormat;
 
     virtual ~Message() = default;
 
-    /** @brief Serializes the message content into a byte vector
+    /**
+     * @brief Serializes the message content into a byte vector
      *
-     * @return serialized_message_t Serialized byte vector of the message
-     *content
-     **/
+     * @return serialized_message_t Serialized byte vector of the message content
+     */
     [[nodiscard]] virtual serialized_message_t serialize() const {
         return {
             reinterpret_cast<const std::uint8_t*>(&_content),
@@ -106,10 +113,11 @@ template <MessageFormatT MessageFormat> class Message
         };
     }
 
-    /** @brief Accessor for the structured content of the message
+    /**
+     * @brief Accessor for the structured content of the message
      *
      * @return const MessageFormat& Reference to the structured content
-     **/
+     */
     [[nodiscard]] const MessageFormat& content() const { return _content; }
 };
 
@@ -124,12 +132,19 @@ template <MessageFormatT MessageFormat> class Message
 template <MessageFormatT ReceivedMessageFormat> class ReceivedMessage : public Message<ReceivedMessageFormat>
 {
   public:
-    /** @brief Constructs a ReceivedMessage from raw byte input
+    /**
+     * @brief Constructs a ReceivedMessage from raw byte input
      *
      * @param content Raw byte content of the received message
      * @throws std::runtime_error if content size is invalid
-     **/
+     */
     explicit ReceivedMessage(const serialized_message_t& content) : Message<ReceivedMessageFormat>(content) {}
+
+    /**
+     * @brief Constructs a ReceivedMessage with default content
+     * May be useful for more complex initialization in derived classes.
+     */
+    ReceivedMessage() : Message<ReceivedMessageFormat>() {}
 };
 
 /**
@@ -143,9 +158,10 @@ template <MessageFormatT ReceivedMessageFormat> class ReceivedMessage : public M
 template <MessageFormatT SentMessageFormat> class SentMessage final : public Message<SentMessageFormat>
 {
   public:
-    /** @brief Constructs a SentMessage from structured content
+    /**
+     * @brief Constructs a SentMessage from structured content
      *
      * @param content Structured content of the sent message
-     **/
+     */
     explicit SentMessage(SentMessageFormat content) : Message<SentMessageFormat>(std::move(content)) {}
 };

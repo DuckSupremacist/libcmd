@@ -21,11 +21,12 @@ template <MessageFormatT CommandMessageFormat, MessageFormatT ResponseMessageFor
     /** @brief Type alias for the output message type */
     using output_message_t = SentMessage<ResponseMessageFormat>;
 
-    /** @brief Constructs a Command from raw byte input
+    /**
+     * @brief Constructs a Command from raw byte input
      *
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
-     **/
+     */
     explicit Command(const std::vector<std::uint8_t>& content) : ReceivedMessage<CommandMessageFormat>(content) {}
 
     /**

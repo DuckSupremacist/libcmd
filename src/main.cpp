@@ -89,7 +89,7 @@ struct Command1 final : Command<ReceivedMessageFormat1, SentMessageFormat1>
      *
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
-     **/
+     */
     explicit Command1(const serialized_message_t& content) : Command(content) {}
 
     /**
@@ -100,12 +100,14 @@ struct Command1 final : Command<ReceivedMessageFormat1, SentMessageFormat1>
      */
     [[nodiscard]] serialized_message_array_t execute() const override {
         // Dummy implementation
-        return {output_message_t({
-                                     .id = this->content().id,
-                                     .status = 0x00,
-                                     .value = _content.arg * 1U,
-                                 })
-                    .serialize()};
+        return {
+            output_message_t({
+                                 .id = this->content().id,
+                                 .status = 0x00,
+                                 .value = _content.arg * 1U,
+                             })
+                .serialize(),
+        };
     }
 };
 
@@ -119,7 +121,7 @@ struct Command2 final : Command<ReceivedMessageFormat2, SentMessageFormat2>
      *
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
-     **/
+     */
     explicit Command2(const serialized_message_t& content) : Command(content) {}
 
     /**
@@ -130,12 +132,14 @@ struct Command2 final : Command<ReceivedMessageFormat2, SentMessageFormat2>
      */
     [[nodiscard]] serialized_message_array_t execute() const override {
         // Dummy implementation
-        return {output_message_t({
-                                     .id = this->content().id,
-                                     .status = 0x00,
-                                     .value = _content.arg * 2U,
-                                 })
-                    .serialize()};
+        return {
+            output_message_t({
+                                 .id = this->content().id,
+                                 .status = 0x00,
+                                 .value = _content.arg * 2U,
+                             })
+                .serialize(),
+        };
     }
 };
 
@@ -149,7 +153,7 @@ struct Command3 final : Command<ReceivedMessageFormat3, SentMessageFormat3>
      *
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
-     **/
+     */
     explicit Command3(const serialized_message_t& content) : Command(content) {}
 
     /**
@@ -160,18 +164,21 @@ struct Command3 final : Command<ReceivedMessageFormat3, SentMessageFormat3>
      */
     [[nodiscard]] serialized_message_array_t execute() const override {
         // Dummy implementation
-        return {output_message_t({
-                                     .id = this->content().id,
-                                     .status = 0x00,
-                                     .value = _content.arg * 3U,
-                                 })
-                    .serialize()};
+        return {
+            output_message_t({
+                                 .id = this->content().id,
+                                 .status = 0x00,
+                                 .value = _content.arg * 3U,
+                             })
+                .serialize(),
+        };
     }
 };
 
 using Handler123 = Handler<Command1, Command2, Command3>;
 
 /* ―――――――――――――――― Helpers ―――――――――――――――― */
+
 static std::generator<serialized_message_t> inputMessage() {
     std::cout << "Enter 'q' to quit." << std::endl;
     while (true) {
@@ -183,7 +190,7 @@ static std::generator<serialized_message_t> inputMessage() {
 
         // Quit when received 'q'
         if (line == "q") {
-            exit(0);
+            break;
         }
 
         // Validate: only hex digits and even length
@@ -212,6 +219,8 @@ static std::generator<serialized_message_t> inputMessage() {
         }
         co_yield data;
     }
+    std::cout << "Exiting." << std::endl;
+    co_return;
 }
 
 static void printResponse(const serialized_message_t& response) {
