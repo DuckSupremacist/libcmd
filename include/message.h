@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 /* ―――――――――――――――― Concepts ―――――――――――――――― */
@@ -80,8 +81,10 @@ template <MessageFormatT MessageFormat> class Message
      * @param content Raw byte content of the message
      * @throws std::runtime_error if content size is invalid
      */
-    explicit Message(const std::vector<std::uint8_t>& content) {
-        if (content.size() != sizeof(MessageFormat)) { // TODO: handle structs with flexible array member?
+    explicit Message(const std::vector<std::uint8_t>& content)
+        requires std::is_trivially_copyable_v<MessageFormat>
+    {
+        if (content.size() != sizeof(MessageFormat)) {
             throw std::runtime_error("Invalid content size");
         }
         if (content.at(0) != MessageFormat::ID) {
@@ -91,9 +94,31 @@ template <MessageFormatT MessageFormat> class Message
     }
 
     /**
-     * @brief Constructs a Message from raw byte input
+     * @brief Constructs a Message with default content
+     * Verifies size and ID.
+     * Initializes the `id` field to MessageFormat::ID.
+     * May be useful for more complex initialization in derived classes.
+     *
+     * Usage:
+     *     class MyMessage : public Message<MyFormat> {
+     *       public:
+     *         MyMessage(const std::vector<std::uint8_t>& content) : Message<MyFormat>(std::in_place, content)
+     *         { ... }
+     *     };
+     *
+     * @param content Raw byte content of the message
+     * @throws std::runtime_error if content size is invalid
      */
-    explicit Message() = default;
+    explicit Message(std::in_place_t, const std::vector<std::uint8_t>& content) {
+        if (content.size() != sizeof(MessageFormat)) {
+            throw std::runtime_error("Invalid content size");
+        }
+        if (content.at(0) != MessageFormat::ID) {
+            throw std::runtime_error("Invalid ID");
+        }
+        _content = MessageFormat{}; // default-initialize all fields
+        _content.id = MessageFormat::ID;
+    }
 
   public:
     /** @brief Type alias for the message format */
@@ -139,6 +164,25 @@ template <MessageFormatT ReceivedMessageFormat> class ReceivedMessage : public M
      * @throws std::runtime_error if content size is invalid
      */
     explicit ReceivedMessage(const serialized_message_t& content) : Message<ReceivedMessageFormat>(content) {}
+
+    /**
+     * @brief Constructs a Message with default content
+     * Verifies size and ID.
+     * Initializes the `id` field to MessageFormat::ID.
+     * May be useful for more complex initialization in derived classes.
+     *
+     * Usage:
+     *     class MyMessage : public ReceivedMessage<MyFormat> {
+     *       public:
+     *         MyMessage(const std::vector<std::uint8_t>& content) : ReceivedMessage<MyFormat>(std::in_place, content)
+     *         { ... }
+     *     };
+     *
+     * @param content Raw byte content of the message
+     * @throws std::runtime_error if content size is invalid
+     */
+    ReceivedMessage(std::in_place_t, const serialized_message_t& content)
+        : Message<ReceivedMessageFormat>(std::in_place, content) {}
 
     /**
      * @brief Constructs a ReceivedMessage with default content

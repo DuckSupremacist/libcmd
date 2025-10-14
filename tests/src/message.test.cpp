@@ -22,11 +22,23 @@ struct GoodFormat
     std::uint8_t id; // must be first
     std::uint8_t a;
     std::uint16_t b;
-};
+} __attribute__((packed));
 // POD-like to be safely memcpy'ed
 static_assert(std::is_standard_layout_v<GoodFormat>);
 static_assert(std::is_trivially_copyable_v<GoodFormat>);
 static_assert(offsetof(GoodFormat, id) == 0);
+
+struct NonTrivialFormat
+{
+    static constexpr std::uint8_t ID = 0x77;
+    std::uint8_t id;       // must be first
+    std::uint16_t len;     // payload length (LE in tests)
+    ~NonTrivialFormat() {} // makes it non-trivially copyable // NOLINT(*-use-equals-default)
+} __attribute__((packed));
+static_assert(std::is_standard_layout_v<NonTrivialFormat>);
+static_assert(!std::is_trivially_copyable_v<NonTrivialFormat>);
+static_assert(offsetof(NonTrivialFormat, id) == 0);
+static_assert(MessageFormatT<NonTrivialFormat>);
 
 /* ―――――――――――――――― Concept tests ―――――――――――――――― */
 
@@ -36,36 +48,36 @@ struct BadNoId
     static constexpr std::uint8_t ID = 1;
     // missing non-static data member `id`
     std::uint8_t a;
-};
+} __attribute__((packed));
 
 struct BadIdNotFirst
 {
     static constexpr std::uint8_t ID = 2;
     std::uint8_t a;
     std::uint8_t id; // not first
-};
+} __attribute__((packed));
 
 struct BadIdWrongType
 {
     static constexpr std::uint8_t ID = 3;
     unsigned int id; // not a 1-byte unsigned integral
-};
+} __attribute__((packed));
 
 struct BadStaticIdWrongType
 {
     static constexpr int ID = 4; // not an UnsignedByte type
     std::uint8_t id;
-};
+} __attribute__((packed));
 
 enum class SmallEnum : std::uint8_t
 {
     V = 7
-};
+} __attribute__((packed));
 struct BadStaticIdEnum
 {
     static constexpr SmallEnum ID = SmallEnum::V; // enum, not integral type for UnsignedByte
     std::uint8_t id;
-};
+} __attribute__((packed));
 
 TEST(MessageConcepts, UnsignedByte) {
     static_assert(UnsignedByte<std::uint8_t>);
@@ -90,6 +102,30 @@ TEST(MessageConcepts, MessageFormatT) {
 
 using ReceivedGoodMessage = ReceivedMessage<GoodFormat>;
 using SentGoodMessage = SentMessage<GoodFormat>;
+
+class NonTrivialReceived final : public ReceivedMessage<NonTrivialFormat>
+{
+  public:
+    using ReceivedMessage::ReceivedMessage; // keep default/inherited ones if needed
+
+    explicit NonTrivialReceived(const std::vector<std::uint8_t>& wire)
+        : ReceivedMessage(std::in_place, wire) // validates size>=1 and ID, sets _content.id
+    {
+        if (wire.size() < 3) {
+            throw std::runtime_error("Invalid content size for NonTrivialFormat");
+        }
+        // Parse 16-bit little-endian length from bytes 1..2
+        this->_content.len = static_cast<std::uint16_t>(wire[1] | static_cast<std::uint16_t>(wire[2]) << 8);
+    }
+
+    [[nodiscard]] serialized_message_t serialize() const override {
+        return {
+            this->_content.id,
+            static_cast<std::uint8_t>(this->_content.len & 0xFF),
+            static_cast<std::uint8_t>(this->_content.len >> 8 & 0xFF),
+        };
+    }
+};
 
 /* ―――――――――――――――― Runtime tests ―――――――――――――――― */
 
@@ -158,6 +194,28 @@ TEST(ReceivedMessage, ThrowsOnWrongID) {
     const std::vector<std::uint8_t> raw = toBytes(bad_id);
 
     EXPECT_THROW(ReceivedGoodMessage{raw}, std::runtime_error);
+}
+
+TEST(NonTrivialMessage, InPlaceCtorParsesLenAndKeepsId) {
+    // We won't use toBytes() because it would memcpy the non-trivial destructor
+    const std::vector<std::uint8_t> wire{NonTrivialFormat::ID, 0x34, 0x12};
+
+    const NonTrivialReceived msg{wire};
+    EXPECT_EQ(msg.content().id, NonTrivialFormat::ID);
+    EXPECT_EQ(msg.content().len, 0x1234); // little-endian
+
+    // serialize() should mirror construction
+    EXPECT_EQ(msg.serialize(), wire);
+}
+
+TEST(NonTrivialMessage, InPlaceCtorRejectsBadId) {
+    const std::vector<std::uint8_t> wire_bad_id{static_cast<std::uint8_t>(NonTrivialFormat::ID + 1), 0x00, 0x00};
+    EXPECT_THROW(NonTrivialReceived{wire_bad_id}, std::runtime_error);
+}
+
+TEST(NonTrivialMessage, InPlaceCtorRejectsTooShort) {
+    const std::vector wire_too_short{NonTrivialFormat::ID}; // only ID, no len
+    EXPECT_THROW(NonTrivialReceived{wire_too_short}, std::runtime_error);
 }
 
 TEST(MessagePolymorphism, BasePointersWork) {
