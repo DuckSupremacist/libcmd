@@ -2,7 +2,6 @@
 
 #include "command.h"
 #include <functional>
-#include <stdexcept>
 
 /* ―――――――――――――――― Concepts ―――――――――――――――― */
 
