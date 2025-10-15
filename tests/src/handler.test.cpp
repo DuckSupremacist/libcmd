@@ -241,6 +241,23 @@ TEST(HandlerExecute, ThrowsOnUnknownId) {
     EXPECT_EQ(constructed_c, 0);
 }
 
+TEST(HandlerExecute, ThrowsOnWrongFormat) {
+    resetCounters();
+
+    std::vector<std::uint8_t> data;
+    data.push_back(FormatA::ID);
+    data.push_back(0x00);
+    data.push_back(0x00);
+    data.push_back(0x00);
+    data.push_back(0x00); // too long
+    const TestCommunicator communicator;
+    EXPECT_EQ(TestHandlerABC::execute(data, communicator), TestHandlerABC::EXECUTE_STATUS::ERROR_WRONG_MESSAGE_FORMAT);
+    EXPECT_EQ(communicator.responses.size(), 0);
+    EXPECT_EQ(constructed_a, 0);
+    EXPECT_EQ(constructed_b, 0);
+    EXPECT_EQ(constructed_c, 0);
+}
+
 TEST(HandlerExecute, DispatchesToMatchingCommandLeftToRight) {
     resetCounters();
 
