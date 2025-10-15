@@ -217,7 +217,9 @@ TEST(HandlerExecute, ThrowsOnEmpty) {
     resetCounters();
     const std::vector<std::uint8_t> empty;
     const TestCommunicator communicator;
-    EXPECT_EQ(TestHandlerABC::execute(empty, communicator), TestHandlerABC::EXECUTE_STATUS::ERROR_WRONG_MESSAGE_FORMAT);
+    std::expected result = TestHandlerABC::execute(empty, communicator);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().code, HANDLER_EXECUTE_STATUS::ERROR_EMPTY_MESSAGE);
     EXPECT_EQ(communicator.responses.size(), 0);
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
@@ -234,14 +236,16 @@ TEST(HandlerExecute, ThrowsOnUnknownId) {
     data.push_back(0x00);
     data.push_back(0x00);
     const TestCommunicator communicator;
-    EXPECT_EQ(TestHandlerABC::execute(data, communicator), TestHandlerABC::EXECUTE_STATUS::ERROR_ID_NOT_FOUND);
+    std::expected result = TestHandlerABC::execute(data, communicator);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().code, HANDLER_EXECUTE_STATUS::ERROR_ID_NOT_FOUND);
     EXPECT_EQ(communicator.responses.size(), 0);
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
     EXPECT_EQ(constructed_c, 0);
 }
 
-TEST(HandlerExecute, ThrowsOnWrongFormat) {
+TEST(HandlerExecute, ThrowsOnWrongSize) {
     resetCounters();
 
     std::vector<std::uint8_t> data;
@@ -251,7 +255,9 @@ TEST(HandlerExecute, ThrowsOnWrongFormat) {
     data.push_back(0x00);
     data.push_back(0x00); // too long
     const TestCommunicator communicator;
-    EXPECT_EQ(TestHandlerABC::execute(data, communicator), TestHandlerABC::EXECUTE_STATUS::ERROR_WRONG_MESSAGE_FORMAT);
+    std::expected result = TestHandlerABC::execute(data, communicator);
+    ASSERT_FALSE(result);
+    EXPECT_EQ(result.error().code, HANDLER_EXECUTE_STATUS::ERROR_MESSAGE_LENGTH_ERROR);
     EXPECT_EQ(communicator.responses.size(), 0);
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
@@ -270,7 +276,8 @@ TEST(HandlerExecute, DispatchesToMatchingCommandLeftToRight) {
     const std::vector<std::uint8_t> raw_b = toBytes(B);
 
     const TestCommunicator communicator;
-    EXPECT_EQ(TestHandlerABC::execute(raw_b, communicator), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
+    std::expected const result = TestHandlerABC::execute(raw_b, communicator);
+    ASSERT_TRUE(result);
 
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 1);
@@ -294,7 +301,8 @@ TEST(HandlerExecute, DispatchesToMatchingCommandAnyOrder) {
     const std::vector<std::uint8_t> raw_c = toBytes(C);
 
     const TestCommunicator communicator;
-    EXPECT_EQ(TestHandlerABC::execute(raw_c, communicator), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
+    const std::expected result = TestHandlerABC::execute(raw_c, communicator);
+    ASSERT_TRUE(result);
 
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
@@ -327,7 +335,8 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
 
     // Execute A
     const TestCommunicator communicator;
-    EXPECT_EQ(TestHandlerABC::execute(raw_a, communicator), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
+    std::expected result = TestHandlerABC::execute(raw_a, communicator);
+    ASSERT_TRUE(result);
     EXPECT_EQ(constructed_a, 1);
     EXPECT_EQ(constructed_b, 0);
     EXPECT_EQ(constructed_c, 0);
@@ -341,7 +350,8 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
 
     // Execute B
     communicator.responses.clear();
-    EXPECT_EQ(TestHandlerABC::execute(raw_b, communicator), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
+    result = TestHandlerABC::execute(raw_b, communicator);
+    ASSERT_TRUE(result);
     EXPECT_EQ(constructed_a, 1);
     EXPECT_EQ(constructed_b, 1);
     EXPECT_EQ(constructed_c, 0);
@@ -355,7 +365,8 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
 
     // Execute C
     communicator.responses.clear();
-    EXPECT_EQ(TestHandlerABC::execute(raw_c, communicator), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
+    result = TestHandlerABC::execute(raw_c, communicator);
+    ASSERT_TRUE(result);
     EXPECT_EQ(constructed_a, 1);
     EXPECT_EQ(constructed_b, 1);
     EXPECT_EQ(constructed_c, 1);
@@ -369,7 +380,8 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
 
     // Execute A
     communicator.responses.clear();
-    EXPECT_EQ(TestHandlerABC::execute(raw_a, communicator), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
+    result = TestHandlerABC::execute(raw_a, communicator);
+    ASSERT_TRUE(result);
     EXPECT_EQ(constructed_a, 2);
     EXPECT_EQ(constructed_b, 1);
     EXPECT_EQ(constructed_c, 1);

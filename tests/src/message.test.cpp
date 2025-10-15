@@ -72,12 +72,12 @@ struct BadStaticIdWrongType
 enum class SmallEnum : std::uint8_t
 {
     V = 7
-} __attribute__((packed));
+};
 struct BadStaticIdEnum
 {
     static constexpr SmallEnum ID = SmallEnum::V; // enum, not integral type for UnsignedByte
     std::uint8_t id;
-} __attribute__((packed));
+};
 
 TEST(MessageConcepts, UnsignedByte) {
     static_assert(UnsignedByte<std::uint8_t>);
@@ -118,7 +118,7 @@ class NonTrivialReceived final : public ReceivedMessage<NonTrivialFormat>
         this->_content.len = static_cast<std::uint16_t>(wire[1] | static_cast<std::uint16_t>(wire[2]) << 8);
     }
 
-    [[nodiscard]] serialized_message_t serialize() const override {
+    [[nodiscard]] std::vector<std::uint8_t> serialize() const override {
         return {
             this->_content.id,
             static_cast<std::uint8_t>(this->_content.len & 0xFF),
@@ -181,8 +181,8 @@ TEST(ReceivedMessage, ThrowsOnWrongSize) {
     // Too big
     const std::vector<std::uint8_t> bad_big(sizeof(GoodFormat) + 1, 0);
 
-    EXPECT_THROW(ReceivedGoodMessage{bad_small}, std::runtime_error);
-    EXPECT_THROW(ReceivedGoodMessage{bad_big}, std::runtime_error);
+    EXPECT_THROW(ReceivedGoodMessage{bad_small}, MessageLengthError);
+    EXPECT_THROW(ReceivedGoodMessage{bad_big}, MessageLengthError);
 }
 
 TEST(ReceivedMessage, ThrowsOnWrongID) {
@@ -193,7 +193,7 @@ TEST(ReceivedMessage, ThrowsOnWrongID) {
     bad_id.b = 0;
     const std::vector<std::uint8_t> raw = toBytes(bad_id);
 
-    EXPECT_THROW(ReceivedGoodMessage{raw}, std::runtime_error);
+    EXPECT_THROW(ReceivedGoodMessage{raw}, MessageWrongIdError);
 }
 
 TEST(NonTrivialMessage, InPlaceCtorParsesLenAndKeepsId) {
@@ -210,12 +210,12 @@ TEST(NonTrivialMessage, InPlaceCtorParsesLenAndKeepsId) {
 
 TEST(NonTrivialMessage, InPlaceCtorRejectsBadId) {
     const std::vector<std::uint8_t> wire_bad_id{static_cast<std::uint8_t>(NonTrivialFormat::ID + 1), 0x00, 0x00};
-    EXPECT_THROW(NonTrivialReceived{wire_bad_id}, std::runtime_error);
+    EXPECT_THROW(NonTrivialReceived{wire_bad_id}, MessageWrongIdError);
 }
 
 TEST(NonTrivialMessage, InPlaceCtorRejectsTooShort) {
     const std::vector wire_too_short{NonTrivialFormat::ID}; // only ID, no len
-    EXPECT_THROW(NonTrivialReceived{wire_too_short}, std::runtime_error);
+    EXPECT_THROW(NonTrivialReceived{wire_too_short}, MessageLengthError);
 }
 
 TEST(MessagePolymorphism, BasePointersWork) {

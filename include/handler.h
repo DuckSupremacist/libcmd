@@ -1,6 +1,7 @@
 #pragma once
 
 #include "command.h"
+#include <expected>
 #include <functional>
 
 /* ―――――――――――――――― Concepts ―――――――――――――――― */
@@ -50,6 +51,26 @@ template <CommandLike C, CommandLike... Rest> struct UniqueIds<C, Rest...>
 using serialized_message_array_t = std::vector<serialized_message_t>;
 
 /* ―――――――――――――――― Classes ―――――――――――――――― */
+/**
+ * @brief Enumeration representing the status of command execution
+ */
+enum class HANDLER_EXECUTE_STATUS : std::uint8_t
+{
+    ERROR_ID_NOT_FOUND = 1,
+    ERROR_MESSAGE_LENGTH_ERROR = 2,
+    ERROR_EXCEPTION_DURING_EXECUTION = 3,
+    ERROR_EMPTY_MESSAGE = 4,
+};
+/**
+ * @brief Structure representing an error that occurred during command execution
+ */
+struct HandlerExecuteError
+{
+    /** @brief The status code of the error */
+    HANDLER_EXECUTE_STATUS code;
+    /** @brief A descriptive message about the error */
+    std::string msg;
+};
 
 /**
  * @brief Class that handles execution of commands based on incoming data
@@ -66,28 +87,19 @@ template <CommandLike... Commands> class Handler final
 
   public:
     /**
-     * @brief Enumeration representing the status of command execution
-     */
-    enum class EXECUTE_STATUS : std::uint8_t
-    {
-        SUCCESS = 0,
-        ERROR_ID_NOT_FOUND = 1,
-        ERROR_WRONG_MESSAGE_FORMAT = 2,
-        ERROR_COMMAND_FAILED = 3,
-    };
-
-    /**
      * @brief Executes the appropriate command based on incoming data
      * @param data Raw byte data containing the command ID and payload
      * @param communicator The Communicator instance to handle responses and requests
      * @return EXECUTE_STATUS The status of the command execution
      * @throws std::runtime_error if the data is empty or the command ID is unknown
      */
-    [[nodiscard]] static EXECUTE_STATUS execute(const serialized_message_t& data, const Communicator& communicator) {
+    [[nodiscard]] static std::expected<void, HandlerExecuteError>
+    execute(const serialized_message_t& data, const Communicator& communicator) noexcept {
         if (data.empty()) {
-            return EXECUTE_STATUS::ERROR_WRONG_MESSAGE_FORMAT;
+            return std::unexpected{HandlerExecuteError{
+                .code = HANDLER_EXECUTE_STATUS::ERROR_EMPTY_MESSAGE, .msg = "Empty message received"
+            }};
         }
-
         const std::uint8_t id = data.front();
 
         // Short-circuit fold: constructs and execute only the matching command
@@ -95,13 +107,27 @@ template <CommandLike... Commands> class Handler final
             const bool matched =
                 ((id == command_helpers::cmdId<Commands>() && (Commands{data}.execute(communicator), true)) || ...);
             if (!matched) {
-                return EXECUTE_STATUS::ERROR_ID_NOT_FOUND;
+                return std::unexpected{HandlerExecuteError{
+                    .code = HANDLER_EXECUTE_STATUS::ERROR_ID_NOT_FOUND,
+                    .msg = "Unknown command ID: " + std::to_string(id)
+                }};
             }
         }
-        catch (const std::exception& e) {
-            // TODO: handle different exception types differently
-            return EXECUTE_STATUS::ERROR_WRONG_MESSAGE_FORMAT;
+        catch (const MessageLengthError& e) {
+            return std::unexpected{
+                HandlerExecuteError{.code = HANDLER_EXECUTE_STATUS::ERROR_MESSAGE_LENGTH_ERROR, .msg = e.what()}
+            };
         }
-        return EXECUTE_STATUS::SUCCESS;
+        catch (const std::exception& e) {
+            return std::unexpected{
+                HandlerExecuteError{.code = HANDLER_EXECUTE_STATUS::ERROR_EXCEPTION_DURING_EXECUTION, .msg = e.what()}
+            };
+        }
+        catch (...) {
+            return std::unexpected{HandlerExecuteError{
+                .code = HANDLER_EXECUTE_STATUS::ERROR_EXCEPTION_DURING_EXECUTION, .msg = "Unknown exception"
+            }};
+        }
+        return {};
     }
 };

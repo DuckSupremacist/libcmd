@@ -90,7 +90,7 @@ struct Command1 final : Command<ReceivedMessageFormat1>
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
      */
-    explicit Command1(const serialized_message_t& content) : Command(content) {}
+    explicit Command1(const std::vector<std::uint8_t>& content) : Command(content) {}
 
     /**
      * @brief Executes the command associated with this message
@@ -118,7 +118,7 @@ struct Command2 final : Command<ReceivedMessageFormat2>
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
      */
-    explicit Command2(const serialized_message_t& content) : Command(content) {}
+    explicit Command2(const std::vector<std::uint8_t>& content) : Command(content) {}
 
     /**
      * @brief Executes the command associated with this message
@@ -146,7 +146,7 @@ struct Command3 final : Command<ReceivedMessageFormat3>
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
      */
-    explicit Command3(const serialized_message_t& content) : Command(content) {}
+    explicit Command3(const std::vector<std::uint8_t>& content) : Command(content) {}
 
     /**
      * @brief Executes the command associated with this message
@@ -189,7 +189,8 @@ class SimpleCommunicator final : public Communicator
      * @return EXECUTE_STATUS The status of the request execution
      */
     REQUEST_STATUS request(
-        const serialized_message_t& /*message*/, std::function<void(serialized_message_t)> /*handle_response_callback*/
+        const std::vector<std::uint8_t>& /*message*/,
+        std::function<void(std::vector<std::uint8_t>)> /*handle_response_callback*/
     ) const override {
         // Dummy implementation: no actual request handling
         return REQUEST_STATUS::ERROR_UNKNOWN;
@@ -198,7 +199,7 @@ class SimpleCommunicator final : public Communicator
 
 /* ―――――――――――――――― Helpers ―――――――――――――――― */
 
-static std::generator<serialized_message_t> inputMessage() {
+static std::generator<std::vector<std::uint8_t>> inputMessage() {
     std::cout << "Enter 'q' to quit." << std::endl;
     while (true) {
         std::string line;
@@ -230,7 +231,7 @@ static std::generator<serialized_message_t> inputMessage() {
         }
 
         // Convert contiguous hex string to bytes
-        serialized_message_t data;
+        std::vector<std::uint8_t> data;
         data.reserve(line.size() / 2);
         for (std::size_t i = 0; i < line.size(); i += 2) {
             const std::string byte_str = line.substr(i, 2);
@@ -246,14 +247,16 @@ static std::generator<serialized_message_t> inputMessage() {
 
 int main() {
     std::cout << "Command Handler Test Program" << std::endl;
-    for (const serialized_message_t& data : inputMessage()) {
+    for (const std::vector<std::uint8_t>& data : inputMessage()) {
         const SimpleCommunicator communicator;
         // Execute handler
-        const Handler123::EXECUTE_STATUS status = Handler123::execute(data, communicator);
+        std::expected const result = Handler123::execute(data, communicator);
 
         // Report status
-        if (status != Handler123::EXECUTE_STATUS::SUCCESS) {
-            std::cerr << "Error: command execution failed with status " << static_cast<int>(status) << std::endl;
+        if (!result) {
+            std::cerr << "Error: command execution failed:\n"
+                      << "\t- code:\t" << static_cast<int>(result.error().code) << "\t- msg:\t" << result.error().msg
+                      << std::endl;
         }
         else {
             std::cout << "Command executed successfully." << std::endl;

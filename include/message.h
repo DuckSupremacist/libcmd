@@ -23,10 +23,14 @@ template <class T> concept UnsignedByte =
  * Example of a conforming type:
  * struct MessageFormat {
  *     static constexpr std::uint8_t ID = 0x01; // static ID
- *     std::uint8_t id; // must be first member
- *     std::uint32_t data; // other members
- *     std::array<std::uint8_t, 10> payload; // etc.
- * };
+ *     std::uint8_t id;                         // must be first member
+ *     std::uint32_t data;                      // other members
+ *     std::array<std::uint8_t, 10> payload;    // etc...
+ * }__attribute__((packed)); // packed to avoid padding issues (not strictly required)
+ *
+ * IMPORTANT:
+ * If the type is not trivially copyable,
+ * the user will need to use a custom Message constructor and a custom serialize()
  *
  * Requirements:
  *  - `T::ID` is a constant expression, representable in std::uint8_t.
@@ -52,6 +56,50 @@ template <typename T> concept MessageFormatT =
 /** @brief Type alias for the serialized message format */
 using serialized_message_t = std::vector<std::uint8_t>;
 
+/* ―――――――――――――――― Exceptions ―――――――――――――――― */
+/**
+ * @brief Exception thrown when a message has an invalid length
+ *
+ * This exception is derived from std::length_error and is thrown when
+ * the length of a message does not match the expected size.
+ */
+class MessageLengthError final : public std::length_error
+{
+  public:
+    /**
+     * @brief Constructs a MessageLengthError with a specific error message
+     * @param what_arg The error message
+     */
+    explicit MessageLengthError(const std::string& what_arg) : std::length_error(what_arg) {}
+    /**
+     * @brief Constructs a MessageLengthError with a specific error message
+     * @param what_arg The error message
+     */
+    explicit MessageLengthError(const char* what_arg) : std::length_error(what_arg) {}
+};
+
+/**
+ * @brief Exception thrown when a message has an incorrect ID
+ *
+ * This exception is derived from std::invalid_argument and is thrown when
+ * the ID of a message does not match the expected ID.
+ */
+class MessageWrongIdError final : public std::invalid_argument
+{
+  public:
+    /**
+     * @brief Constructs a MessageWrongIdError with a specific error message
+     * @param what_arg The error message
+     */
+    explicit MessageWrongIdError(const std::string& what_arg) : std::invalid_argument(what_arg) {}
+
+    /**
+     * @brief Constructs a MessageWrongIdError with a specific error message
+     * @param what_arg The error message
+     */
+    explicit MessageWrongIdError(const char* what_arg) : std::invalid_argument(what_arg) {}
+};
+
 /* ―――――――――――――――― Classes ―――――――――――――――― */
 
 /**
@@ -65,7 +113,6 @@ using serialized_message_t = std::vector<std::uint8_t>;
 template <MessageFormatT MessageFormat> class Message
 {
   protected:
-    // TODO: make const?
     MessageFormat _content; ///< Structured content of the message
 
     /**
@@ -79,16 +126,22 @@ template <MessageFormatT MessageFormat> class Message
      * @brief Constructs a Message from raw byte input
      *
      * @param content Raw byte content of the message
-     * @throws std::runtime_error if content size is invalid
+     * @throws MessageLengthError if content size is invalid
+     * @throws MessageWrongIdError if content size is invalid
      */
     explicit Message(const std::vector<std::uint8_t>& content)
         requires std::is_trivially_copyable_v<MessageFormat>
     {
         if (content.size() != sizeof(MessageFormat)) {
-            throw std::runtime_error("Invalid content size");
+            throw MessageLengthError(
+                "Invalid content size, expected " + std::to_string(sizeof(MessageFormat)) + ", got " +
+                std::to_string(content.size())
+            );
         }
         if (content.at(0) != MessageFormat::ID) {
-            throw std::runtime_error("Invalid ID");
+            throw MessageWrongIdError(
+                "Invalid ID, expected " + std::to_string(MessageFormat::ID) + ", got " + std::to_string(content.at(0))
+            );
         }
         std::memcpy(&_content, content.data(), sizeof(MessageFormat));
     }
@@ -107,14 +160,20 @@ template <MessageFormatT MessageFormat> class Message
      *     };
      *
      * @param content Raw byte content of the message
-     * @throws std::runtime_error if content size is invalid
+     * @throws MessageLengthError if content size is invalid
+     * @throws MessageWrongIdError if content size is invalid
      */
     explicit Message(std::in_place_t, const std::vector<std::uint8_t>& content) {
         if (content.size() != sizeof(MessageFormat)) {
-            throw std::runtime_error("Invalid content size");
+            throw MessageLengthError(
+                "Invalid content size, expected " + std::to_string(sizeof(MessageFormat)) + ", got " +
+                std::to_string(content.size())
+            );
         }
         if (content.at(0) != MessageFormat::ID) {
-            throw std::runtime_error("Invalid ID");
+            throw MessageWrongIdError(
+                "Invalid ID, expected " + std::to_string(MessageFormat::ID) + ", got " + std::to_string(content.at(0))
+            );
         }
         _content = MessageFormat{}; // default-initialize all fields
         _content.id = MessageFormat::ID;
@@ -161,7 +220,8 @@ template <MessageFormatT ReceivedMessageFormat> class ReceivedMessage : public M
      * @brief Constructs a ReceivedMessage from raw byte input
      *
      * @param content Raw byte content of the received message
-     * @throws std::runtime_error if content size is invalid
+     * @throws MessageLengthError if content size is invalid
+     * @throws MessageWrongIdError if content size is invalid
      */
     explicit ReceivedMessage(const serialized_message_t& content) : Message<ReceivedMessageFormat>(content) {}
 
@@ -179,16 +239,11 @@ template <MessageFormatT ReceivedMessageFormat> class ReceivedMessage : public M
      *     };
      *
      * @param content Raw byte content of the message
-     * @throws std::runtime_error if content size is invalid
+     * @throws MessageLengthError if content size is invalid
+     * @throws MessageWrongIdError if content size is invalid
      */
     ReceivedMessage(std::in_place_t, const serialized_message_t& content)
         : Message<ReceivedMessageFormat>(std::in_place, content) {}
-
-    /**
-     * @brief Constructs a ReceivedMessage with default content
-     * May be useful for more complex initialization in derived classes.
-     */
-    ReceivedMessage() : Message<ReceivedMessageFormat>() {}
 };
 
 /**

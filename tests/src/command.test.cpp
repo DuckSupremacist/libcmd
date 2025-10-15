@@ -122,8 +122,8 @@ TEST(CommandConstruction, ThrowsOnWrongSize) {
     // Too big
     const std::vector<std::uint8_t> bad_big(sizeof(CmdFormat) + 1, 0);
 
-    EXPECT_THROW(EchoPlusOneCommand{bad_small}, std::runtime_error);
-    EXPECT_THROW(EchoPlusOneCommand{bad_big}, std::runtime_error);
+    EXPECT_THROW(EchoPlusOneCommand{bad_small}, MessageLengthError);
+    EXPECT_THROW(EchoPlusOneCommand{bad_big}, MessageLengthError);
 }
 
 TEST(CommandExecute, ProducesExpectedResponseBytes) {
