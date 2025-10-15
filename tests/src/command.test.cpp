@@ -46,7 +46,8 @@ static_assert(MessageFormatT<RspFormat>);
 
 /* ―――――――――――――――― Typedefs ―――――――――――――――― */
 
-using TestCommandBase = Command<CmdFormat, RspFormat>;
+using TestCommandBase = Command<CmdFormat>;
+using ResponseMessage = SentMessage<RspFormat>;
 
 /* ―――――――――――――――― Concrete Command for tests ――――――――――――――――
    This command interprets the input and returns one response frame:
@@ -58,18 +59,28 @@ class EchoPlusOneCommand final : public TestCommandBase
   public:
     explicit EchoPlusOneCommand(const std::vector<std::uint8_t>& raw) : TestCommandBase(raw) {}
 
-    [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
+    void execute(const Communicator& communicator) const override {
         // Build response payload from input content()
         RspFormat rsp{};
         rsp.id = RspFormat::ID;
         rsp.status = this->content().opcode;
         rsp.value = static_cast<std::uint16_t>(this->content().param + 1);
+        communicator.respond(ResponseMessage(rsp).serialize());
+    }
+};
 
-        const output_message_t out{rsp};
-        const std::vector<std::uint8_t> bytes = out.serialize();
-        std::vector<std::vector<std::uint8_t>> frames;
-        frames.push_back(bytes);
-        return frames;
+class TestCommunicator final : public Communicator
+{
+  public:
+    mutable std::vector<std::vector<std::uint8_t>> responses;
+
+    void respond(const std::vector<std::uint8_t>& response) const override { responses.push_back(response); }
+
+    REQUEST_STATUS request(
+        const std::vector<std::uint8_t>& message, std::function<void(std::vector<uint8_t>)> handle_response_callback
+    ) const override {
+        GTEST_NONFATAL_FAILURE_("Not implemented in this test");
+        return REQUEST_STATUS::ERROR_UNKNOWN;
     }
 };
 
@@ -83,8 +94,6 @@ TEST(CommandBasics, IsAbstract) {
 TEST(CommandBasics, TypeAliases) {
     // input_message_t is ReceivedMessage<CmdFormat>
     static_assert(std::is_same_v<TestCommandBase::input_message_t, TestCommandBase::input_message_t>);
-    // output_message_t is SentMessage<RspFormat>
-    static_assert(std::is_same_v<TestCommandBase::output_message_t, TestCommandBase::output_message_t>);
     SUCCEED();
 }
 
@@ -133,16 +142,17 @@ TEST(CommandExecute, ProducesExpectedResponseBytes) {
     expected_rsp.status = cmd.opcode;                               // echo opcode
     expected_rsp.value = static_cast<std::uint16_t>(cmd.param + 1); // +1
 
-    const TestCommandBase::output_message_t out_msg{expected_rsp};
+    const ResponseMessage out_msg{expected_rsp};
     const std::vector<std::uint8_t> expected_bytes = out_msg.serialize();
 
     // Act
-    const std::vector<std::vector<std::uint8_t>> frames = c.execute();
+    TestCommunicator const comm{};
+    c.execute(comm);
 
     // Assert one frame returned
-    ASSERT_EQ(frames.size(), static_cast<std::size_t>(1));
+    ASSERT_EQ(comm.responses.size(), static_cast<std::size_t>(1));
     // Assert content matches expected serialization
-    EXPECT_EQ(frames[0], expected_bytes);
+    EXPECT_EQ(comm.responses[0], expected_bytes);
 }
 
 TEST(CommandExecute, MultipleInstancesIndependentState) {
@@ -161,8 +171,9 @@ TEST(CommandExecute, MultipleInstancesIndependentState) {
     const EchoPlusOneCommand cmd2{toBytes(c2)};
 
     // Execute both
-    const std::vector<std::vector<std::uint8_t>> f1 = cmd1.execute();
-    const std::vector<std::vector<std::uint8_t>> f2 = cmd2.execute();
+    TestCommunicator const comm{};
+    cmd1.execute(comm);
+    cmd2.execute(comm);
 
     // Build expected frames
     RspFormat r1{};
@@ -178,8 +189,7 @@ TEST(CommandExecute, MultipleInstancesIndependentState) {
     const std::vector<std::uint8_t> e1 = SentMessage{r1}.serialize();
     const std::vector<std::uint8_t> e2 = SentMessage{r2}.serialize();
 
-    ASSERT_EQ(f1.size(), static_cast<std::size_t>(1));
-    ASSERT_EQ(f2.size(), static_cast<std::size_t>(1));
-    EXPECT_EQ(f1[0], e1);
-    EXPECT_EQ(f2[0], e2);
+    ASSERT_EQ(comm.responses.size(), 2);
+    EXPECT_EQ(comm.responses[0], e1);
+    EXPECT_EQ(comm.responses[1], e2);
 }

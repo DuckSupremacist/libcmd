@@ -82,7 +82,7 @@ using SentMessage3 = SentMessage<SentMessageFormat3>;
 /**
  * @brief Class representing a specific command that can be executed
  */
-struct Command1 final : Command<ReceivedMessageFormat1, SentMessageFormat1>
+struct Command1 final : Command<ReceivedMessageFormat1>
 {
     /**
      * @brief Constructs a SpecificCommand from raw byte input
@@ -94,27 +94,23 @@ struct Command1 final : Command<ReceivedMessageFormat1, SentMessageFormat1>
 
     /**
      * @brief Executes the command associated with this message
-     *
-     * @return serialized_message_array_t The response message after
-     * executing the command
+     * @param communicator The Communicator instance to handle responses and requests
      */
-    [[nodiscard]] serialized_message_array_t execute() const override {
+    void execute(const Communicator& communicator) const override {
         // Dummy implementation
-        return {
-            output_message_t({
-                                 .id = this->content().id,
-                                 .status = 0x00,
-                                 .value = _content.arg * 1U,
-                             })
-                .serialize(),
-        };
+        communicator.respond(SentMessage1({
+                                              .id = this->content().id,
+                                              .status = 0x00,
+                                              .value = _content.arg * 1U,
+                                          })
+                                 .serialize());
     }
 };
 
 /**
  * @brief Class representing a specific command that can be executed
  */
-struct Command2 final : Command<ReceivedMessageFormat2, SentMessageFormat2>
+struct Command2 final : Command<ReceivedMessageFormat2>
 {
     /**
      * @brief Constructs a SpecificCommand from raw byte input
@@ -126,27 +122,23 @@ struct Command2 final : Command<ReceivedMessageFormat2, SentMessageFormat2>
 
     /**
      * @brief Executes the command associated with this message
-     *
-     * @return serialized_message_array_t The response message after
-     * executing the command
+     * @param communicator The Communicator instance to handle responses and requests
      */
-    [[nodiscard]] serialized_message_array_t execute() const override {
+    void execute(const Communicator& communicator) const override {
         // Dummy implementation
-        return {
-            output_message_t({
-                                 .id = this->content().id,
-                                 .status = 0x00,
-                                 .value = _content.arg * 2U,
-                             })
-                .serialize(),
-        };
+        communicator.respond(SentMessage2({
+                                              .id = this->content().id,
+                                              .status = 0x00,
+                                              .value = _content.arg * 2U,
+                                          })
+                                 .serialize());
     }
 };
 
 /**
  * @brief Class representing a specific command that can be executed
  */
-struct Command3 final : Command<ReceivedMessageFormat3, SentMessageFormat3>
+struct Command3 final : Command<ReceivedMessageFormat3>
 {
     /**
      * @brief Constructs a SpecificCommand from raw byte input
@@ -158,24 +150,51 @@ struct Command3 final : Command<ReceivedMessageFormat3, SentMessageFormat3>
 
     /**
      * @brief Executes the command associated with this message
-     *
-     * @return serialized_message_array_t The response message after
-     * executing the command
+     * @param communicator The Communicator instance to handle responses and requests
      */
-    [[nodiscard]] serialized_message_array_t execute() const override {
+    void execute(const Communicator& communicator) const override {
         // Dummy implementation
-        return {
-            output_message_t({
-                                 .id = this->content().id,
-                                 .status = 0x00,
-                                 .value = _content.arg * 3U,
-                             })
-                .serialize(),
-        };
+        communicator.respond(SentMessage3({
+                                              .id = this->content().id,
+                                              .status = 0x00,
+                                              .value = _content.arg * 3U,
+                                          })
+                                 .serialize());
     }
 };
 
 using Handler123 = Handler<Command1, Command2, Command3>;
+
+/* ―――――――――――――――― Communicator ―――――――――――――――― */
+/**
+ * @brief Simple Communicator implementation that prints responses to console
+ */
+class SimpleCommunicator final : public Communicator
+{
+  public:
+    /**
+     * @brief Callback function to send a response message for the current request
+     * @param response The response message to print
+     */
+    void respond(const std::vector<uint8_t>& response) const override {
+        std::cout << "Response: 0x";
+        for (const std::uint8_t b : response) {
+            std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
+        }
+        std::cout << std::dec << std::endl; // reset to decimal
+    }
+
+    /**
+     * @brief Sends a request message and handles each response via a callback
+     * @return EXECUTE_STATUS The status of the request execution
+     */
+    REQUEST_STATUS request(
+        const serialized_message_t& /*message*/, std::function<void(serialized_message_t)> /*handle_response_callback*/
+    ) const override {
+        // Dummy implementation: no actual request handling
+        return REQUEST_STATUS::ERROR_UNKNOWN;
+    }
+};
 
 /* ―――――――――――――――― Helpers ―――――――――――――――― */
 
@@ -223,21 +242,14 @@ static std::generator<serialized_message_t> inputMessage() {
     co_return;
 }
 
-static void printResponse(const serialized_message_t& response) {
-    std::cout << "Response: 0x";
-    for (const std::uint8_t b : response) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b);
-    }
-    std::cout << std::dec << std::endl; // reset to decimal
-}
-
 /* ―――――――――――――――― Main ―――――――――――――――― */
 
 int main() {
     std::cout << "Command Handler Test Program" << std::endl;
     for (const serialized_message_t& data : inputMessage()) {
+        const SimpleCommunicator communicator;
         // Execute handler
-        const Handler123::EXECUTE_STATUS status = Handler123::execute(data, printResponse);
+        const Handler123::EXECUTE_STATUS status = Handler123::execute(data, communicator);
 
         // Report status
         if (status != Handler123::EXECUTE_STATUS::SUCCESS) {

@@ -12,10 +12,7 @@
  */
 template <typename C> concept CommandLike = requires(const std::vector<std::uint8_t>& raw, const C& c) {
     typename C::input_message_t;
-    typename C::output_message_t;
-    requires std::derived_from<
-        C, Command<typename C::input_message_t::message_format_t, typename C::output_message_t::message_format_t>
-    >;
+    requires std::derived_from<C, Command<typename C::input_message_t::message_format_t>>;
 };
 
 /**
@@ -82,24 +79,21 @@ template <CommandLike... Commands> class Handler final
     /**
      * @brief Executes the appropriate command based on incoming data
      * @param data Raw byte data containing the command ID and payload
-     * @param send_response_callback Callback function to send the response data
+     * @param communicator The Communicator instance to handle responses and requests
      * @return EXECUTE_STATUS The status of the command execution
      * @throws std::runtime_error if the data is empty or the command ID is unknown
      */
-    [[nodiscard]] static EXECUTE_STATUS execute(
-        const serialized_message_t& data, const std::function<void(const serialized_message_t&)>& send_response_callback
-    ) {
+    [[nodiscard]] static EXECUTE_STATUS execute(const serialized_message_t& data, const Communicator& communicator) {
         if (data.empty()) {
             return EXECUTE_STATUS::ERROR_WRONG_MESSAGE_FORMAT;
         }
 
         const std::uint8_t id = data.front();
-        serialized_message_array_t out;
 
         // Short-circuit fold: constructs and execute only the matching command
         try {
             const bool matched =
-                ((id == command_helpers::cmdId<Commands>() && (out = Commands{data}.execute(), true)) || ...);
+                ((id == command_helpers::cmdId<Commands>() && (Commands{data}.execute(communicator), true)) || ...);
             if (!matched) {
                 return EXECUTE_STATUS::ERROR_ID_NOT_FOUND;
             }
@@ -107,12 +101,6 @@ template <CommandLike... Commands> class Handler final
         catch (const std::exception& e) {
             // TODO: handle different exception types differently
             return EXECUTE_STATUS::ERROR_WRONG_MESSAGE_FORMAT;
-        }
-
-        // Send all response messages
-        for (const serialized_message_t& msg : out) {
-            // TODO: send asynchronously from Command::execute()
-            send_response_callback(msg);
         }
         return EXECUTE_STATUS::SUCCESS;
     }

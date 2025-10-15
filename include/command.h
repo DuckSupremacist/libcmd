@@ -1,5 +1,6 @@
 #pragma once
 
+#include "communication.h"
 #include "message.h"
 
 /**
@@ -10,16 +11,12 @@
  * method, which returns a response message.
  *
  * @tparam CommandMessageFormat The format of the command message (received)
- * @tparam ResponseMessageFormat The format of the response message (sent)
  */
-template <MessageFormatT CommandMessageFormat, MessageFormatT ResponseMessageFormat> class Command
-    : public ReceivedMessage<CommandMessageFormat>
+template <MessageFormatT CommandMessageFormat> class Command : public ReceivedMessage<CommandMessageFormat>
 {
   public:
     /** @brief Type alias for the input message type */
     using input_message_t = ReceivedMessage<CommandMessageFormat>;
-    /** @brief Type alias for the output message type */
-    using output_message_t = SentMessage<ResponseMessageFormat>;
 
     /**
      * @brief Constructs a Command from raw byte input
@@ -31,9 +28,7 @@ template <MessageFormatT CommandMessageFormat, MessageFormatT ResponseMessageFor
 
     /**
      * @brief Executes the command associated with this message
-     *
-     * @return std::vector<std::vector<std::uint8_t>> The response message vector
-     * after executing the command
+     * @param communicator The Communicator instance to handle responses and requests
      */
-    [[nodiscard]] virtual std::vector<std::vector<std::uint8_t>> execute() const = 0;
+    virtual void execute(const Communicator& communicator) const = 0;
 };

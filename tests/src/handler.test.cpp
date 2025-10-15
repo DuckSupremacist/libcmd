@@ -17,20 +17,6 @@ template <typename T> static std::vector<std::uint8_t> toBytes(const T& obj) {
     return bytes;
 }
 
-/**
- * @brief Returns a function that appends serialized messages to the provided array.
- * Usage:
- *     serialized_message_array_t responses;
- *     auto store = storeResponses(responses);
- *     // pass `store` to a fucntion that takes std::function<void(const serialized_message_t&)>
- *
- * @param out Reference to the array where responses will be stored
- * @return std::function<void(const serialized_message_t&)> Function that appends messages to `out`
- */
-static std::function<void(const serialized_message_t&)> storeResponses(serialized_message_array_t& out) {
-    return [&out](const serialized_message_t& bytes) { out.push_back(bytes); };
-}
-
 /* ───────────────────────── Message Formats ───────────────────────── */
 
 struct FormatA
@@ -90,57 +76,48 @@ static int constructed_a = 0;
 static int constructed_b = 0;
 static int constructed_c = 0;
 
-class CommandA final : public Command<FormatA, ResponseFormat>
+class CommandA final : public Command<FormatA>
 {
   public:
     explicit CommandA(const std::vector<std::uint8_t>& raw) : Command(raw) { ++constructed_a; } // increment counter
 
-    [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
+    void execute(const Communicator& communicator) const override {
         // Response: status = op, result = val + 1
         ResponseFormat r{};
         r.id = ResponseFormat::ID;
         r.status = this->content().op;
         r.result = static_cast<std::uint16_t>(this->content().val + 1);
-        const SentMessage s{r};
-        std::vector<std::vector<std::uint8_t>> out;
-        out.push_back(s.serialize());
-        return out;
+        communicator.respond(SentMessage(r).serialize());
     }
 };
 
-class CommandB final : public Command<FormatB, ResponseFormat>
+class CommandB final : public Command<FormatB>
 {
   public:
     explicit CommandB(const std::vector<std::uint8_t>& raw) : Command(raw) { ++constructed_b; } // increment counter
 
-    [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
+    void execute(const Communicator& communicator) const override {
         // Response: status = code, result = x ^ 0x00FF
         ResponseFormat r{};
         r.id = ResponseFormat::ID;
         r.status = this->content().code;
         r.result = static_cast<std::uint16_t>(this->content().x ^ 0x00FFu);
-        const SentMessage s{r};
-        std::vector<std::vector<std::uint8_t>> out;
-        out.push_back(s.serialize());
-        return out;
+        communicator.respond(SentMessage(r).serialize());
     }
 };
 
-class CommandC final : public Command<FormatC, ResponseFormat>
+class CommandC final : public Command<FormatC>
 {
   public:
     explicit CommandC(const std::vector<std::uint8_t>& raw) : Command(raw) { ++constructed_c; } // increment counter
 
-    [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
+    void execute(const Communicator& communicator) const override {
         // Response: status = flag, result = y
         ResponseFormat r{};
         r.id = ResponseFormat::ID;
         r.status = this->content().flag;
         r.result = static_cast<std::uint16_t>(this->content().y);
-        const SentMessage s{r};
-        std::vector<std::vector<std::uint8_t>> out;
-        out.push_back(s.serialize());
-        return out;
+        communicator.respond(SentMessage(r).serialize());
     }
 };
 
@@ -159,19 +136,16 @@ static_assert(std::is_trivially_copyable_v<FormatADuplicate>);
 static_assert(offsetof(FormatADuplicate, id) == 0);
 static_assert(MessageFormatT<FormatADuplicate>);
 
-class CommandADuplicate final : public Command<FormatADuplicate, ResponseFormat>
+class CommandADuplicate final : public Command<FormatADuplicate>
 {
   public:
     explicit CommandADuplicate(const std::vector<std::uint8_t>& raw) : Command(raw) {}
-    [[nodiscard]] std::vector<std::vector<std::uint8_t>> execute() const override {
+    void execute(const Communicator& communicator) const override {
         ResponseFormat r{};
         r.id = ResponseFormat::ID;
         r.status = 0;
         r.result = 0;
-        const SentMessage s{r};
-        std::vector<std::vector<std::uint8_t>> out;
-        out.push_back(s.serialize());
-        return out;
+        communicator.respond(SentMessage(r).serialize());
     }
 };
 } // anonymous namespace
@@ -218,6 +192,21 @@ TEST(Helpers, UniqueIdsDetection) {
 using TestHandlerABC = Handler<CommandA, CommandB, CommandC>; // A first, B second, C third
 using TestHandlerCBA = Handler<CommandC, CommandB, CommandA>; // Different order to prove it’s order-independent
 
+class TestCommunicator final : public Communicator
+{
+  public:
+    mutable std::vector<std::vector<std::uint8_t>> responses;
+
+    void respond(const std::vector<std::uint8_t>& response) const override { responses.push_back(response); }
+
+    REQUEST_STATUS request(
+        const std::vector<std::uint8_t>& message, std::function<void(std::vector<uint8_t>)> handle_response_callback
+    ) const override {
+        GTEST_NONFATAL_FAILURE_("Not implemented in this test");
+        return REQUEST_STATUS::ERROR_UNKNOWN;
+    }
+};
+
 static void resetCounters() {
     constructed_a = 0;
     constructed_b = 0;
@@ -227,11 +216,9 @@ static void resetCounters() {
 TEST(HandlerExecute, ThrowsOnEmpty) {
     resetCounters();
     const std::vector<std::uint8_t> empty;
-    serialized_message_array_t out;
-    EXPECT_EQ(
-        TestHandlerABC::execute(empty, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::ERROR_WRONG_MESSAGE_FORMAT
-    );
-    EXPECT_EQ(out.size(), 0);
+    const TestCommunicator communicator;
+    EXPECT_EQ(TestHandlerABC::execute(empty, communicator), TestHandlerABC::EXECUTE_STATUS::ERROR_WRONG_MESSAGE_FORMAT);
+    EXPECT_EQ(communicator.responses.size(), 0);
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
     EXPECT_EQ(constructed_c, 0);
@@ -246,9 +233,9 @@ TEST(HandlerExecute, ThrowsOnUnknownId) {
     data.push_back(0x00);
     data.push_back(0x00);
     data.push_back(0x00);
-    serialized_message_array_t out;
-    EXPECT_EQ(TestHandlerABC::execute(data, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::ERROR_ID_NOT_FOUND);
-    EXPECT_EQ(out.size(), 0);
+    const TestCommunicator communicator;
+    EXPECT_EQ(TestHandlerABC::execute(data, communicator), TestHandlerABC::EXECUTE_STATUS::ERROR_ID_NOT_FOUND);
+    EXPECT_EQ(communicator.responses.size(), 0);
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
     EXPECT_EQ(constructed_c, 0);
@@ -265,8 +252,8 @@ TEST(HandlerExecute, DispatchesToMatchingCommandLeftToRight) {
 
     const std::vector<std::uint8_t> raw_b = toBytes(B);
 
-    serialized_message_array_t out;
-    EXPECT_EQ(TestHandlerABC::execute(raw_b, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
+    const TestCommunicator communicator;
+    EXPECT_EQ(TestHandlerABC::execute(raw_b, communicator), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
 
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 1);
@@ -278,8 +265,8 @@ TEST(HandlerExecute, DispatchesToMatchingCommandLeftToRight) {
     expected.result = static_cast<std::uint16_t>(B.x ^ 0x00FFu);
 
     const std::vector<std::uint8_t> expected_bytes = SentMessage{expected}.serialize();
-    EXPECT_EQ(out.size(), 1);
-    EXPECT_EQ(out[0], expected_bytes);
+    EXPECT_EQ(communicator.responses.size(), 1);
+    EXPECT_EQ(communicator.responses[0], expected_bytes);
 }
 
 TEST(HandlerExecute, DispatchesToMatchingCommandAnyOrder) {
@@ -289,8 +276,8 @@ TEST(HandlerExecute, DispatchesToMatchingCommandAnyOrder) {
 
     const std::vector<std::uint8_t> raw_c = toBytes(C);
 
-    serialized_message_array_t out;
-    EXPECT_EQ(TestHandlerABC::execute(raw_c, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
+    const TestCommunicator communicator;
+    EXPECT_EQ(TestHandlerABC::execute(raw_c, communicator), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
 
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
@@ -302,8 +289,8 @@ TEST(HandlerExecute, DispatchesToMatchingCommandAnyOrder) {
     expected.result = C.y;
 
     const std::vector<std::uint8_t> expected_bytes = SentMessage{expected}.serialize();
-    ASSERT_EQ(out.size(), 1);
-    EXPECT_EQ(out[0], expected_bytes);
+    EXPECT_EQ(communicator.responses.size(), 1);
+    EXPECT_EQ(communicator.responses[0], expected_bytes);
 }
 
 TEST(HandlerExecute, DispatchesMultipleCommands) {
@@ -322,8 +309,8 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     const std::vector<std::uint8_t> raw_c = toBytes(C);
 
     // Execute A
-    serialized_message_array_t out;
-    EXPECT_EQ(TestHandlerABC::execute(raw_a, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
+    const TestCommunicator communicator;
+    EXPECT_EQ(TestHandlerABC::execute(raw_a, communicator), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
     EXPECT_EQ(constructed_a, 1);
     EXPECT_EQ(constructed_b, 0);
     EXPECT_EQ(constructed_c, 0);
@@ -332,12 +319,12 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     expected_a.status = A.op;
     expected_a.result = static_cast<std::uint16_t>(A.val + 1);
     const std::vector<std::uint8_t> expected_bytes_a = SentMessage{expected_a}.serialize();
-    ASSERT_EQ(out.size(), static_cast<std::size_t>(1));
-    EXPECT_EQ(out[0], expected_bytes_a);
+    EXPECT_EQ(communicator.responses.size(), 1);
+    EXPECT_EQ(communicator.responses[0], expected_bytes_a);
 
     // Execute B
-    out.clear();
-    EXPECT_EQ(TestHandlerABC::execute(raw_b, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
+    communicator.responses.clear();
+    EXPECT_EQ(TestHandlerABC::execute(raw_b, communicator), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
     EXPECT_EQ(constructed_a, 1);
     EXPECT_EQ(constructed_b, 1);
     EXPECT_EQ(constructed_c, 0);
@@ -346,12 +333,12 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     expected_b.status = B.code;
     expected_b.result = static_cast<std::uint16_t>(B.x ^ 0x00FFu);
     const std::vector<std::uint8_t> expected_bytes_b = SentMessage{expected_b}.serialize();
-    ASSERT_EQ(out.size(), static_cast<std::size_t>(1));
-    EXPECT_EQ(out[0], expected_bytes_b);
+    EXPECT_EQ(communicator.responses.size(), 1);
+    EXPECT_EQ(communicator.responses[0], expected_bytes_b);
 
     // Execute C
-    out.clear();
-    EXPECT_EQ(TestHandlerABC::execute(raw_c, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
+    communicator.responses.clear();
+    EXPECT_EQ(TestHandlerABC::execute(raw_c, communicator), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
     EXPECT_EQ(constructed_a, 1);
     EXPECT_EQ(constructed_b, 1);
     EXPECT_EQ(constructed_c, 1);
@@ -360,15 +347,15 @@ TEST(HandlerExecute, DispatchesMultipleCommands) {
     expected_c.status = C.flag;
     expected_c.result = C.y;
     const std::vector<std::uint8_t> expected_bytes_c = SentMessage{expected_c}.serialize();
-    ASSERT_EQ(out.size(), static_cast<std::size_t>(1));
-    EXPECT_EQ(out[0], expected_bytes_c);
+    EXPECT_EQ(communicator.responses.size(), 1);
+    EXPECT_EQ(communicator.responses[0], expected_bytes_c);
 
     // Execute A
-    out.clear();
-    EXPECT_EQ(TestHandlerABC::execute(raw_a, storeResponses(out)), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
+    communicator.responses.clear();
+    EXPECT_EQ(TestHandlerABC::execute(raw_a, communicator), TestHandlerABC::EXECUTE_STATUS::SUCCESS);
     EXPECT_EQ(constructed_a, 2);
     EXPECT_EQ(constructed_b, 1);
     EXPECT_EQ(constructed_c, 1);
-    ASSERT_EQ(out.size(), static_cast<std::size_t>(1));
-    EXPECT_EQ(out[0], expected_bytes_a);
+    EXPECT_EQ(communicator.responses.size(), 1);
+    EXPECT_EQ(communicator.responses[0], expected_bytes_a);
 }

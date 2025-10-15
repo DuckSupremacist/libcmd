@@ -25,7 +25,7 @@ class Communicator
     /**
      * @brief Callback function to send a response message for the current request
      */
-    virtual void respond(const std::vector<std::uint8_t>&) = 0;
+    virtual void respond(const std::vector<std::uint8_t>&) const = 0;
 
     /**
      * @brief Sends a request message and handles each response via a callback
@@ -36,7 +36,7 @@ class Communicator
      */
     virtual REQUEST_STATUS request(
         const std::vector<std::uint8_t>& message, std::function<void(std::vector<uint8_t>)> handle_response_callback
-    ) = 0;
+    ) const = 0;
 
     /**
      * @brief Sends a request message and collects all responses into a vector
@@ -46,7 +46,7 @@ class Communicator
      * @return EXECUTE_STATUS The status of the request execution
      */
     REQUEST_STATUS
-    request(const std::vector<std::uint8_t>& message, std::vector<std::vector<std::uint8_t>>& responses) {
+    request(const std::vector<std::uint8_t>& message, std::vector<std::vector<std::uint8_t>>& responses) const {
         const std::function<void(std::vector<std::uint8_t>)> callback(
             [&responses](const std::vector<std::uint8_t>& raw_response) { responses.push_back(raw_response); }
         );
