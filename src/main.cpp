@@ -188,7 +188,7 @@ class SimpleCommunicator final : public Communicator
      * @brief Sends a request message and handles each response via a callback
      * @return EXECUTE_STATUS The status of the request execution
      */
-    REQUEST_STATUS request(
+    [[nodiscard]] REQUEST_STATUS request(
         const std::vector<std::uint8_t>& /*message*/,
         std::function<void(std::vector<std::uint8_t>)> /*handle_response_callback*/
     ) const override {

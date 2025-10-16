@@ -76,7 +76,7 @@ class TestCommunicator final : public Communicator
 
     void respond(const std::vector<std::uint8_t>& response) const override { responses.push_back(response); }
 
-    REQUEST_STATUS request(
+    [[nodiscard]] REQUEST_STATUS request(
         const std::vector<std::uint8_t>& message, std::function<void(std::vector<uint8_t>)> handle_response_callback
     ) const override {
         GTEST_NONFATAL_FAILURE_("Not implemented in this test");

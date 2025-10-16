@@ -1,6 +1,7 @@
 # ―――――――――――――――― Configure CMake ―――――――――――――――― #
 cmake_minimum_required(VERSION 3.22)
 
+# Toolchain
 set(CMAKE_C_COMPILER /usr/bin/gcc-14)
 set(CMAKE_CXX_COMPILER /usr/bin/g++-14)
 
@@ -11,6 +12,7 @@ project(
     LANGUAGES CXX
 )
 
+# Language / build flags
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
@@ -18,8 +20,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(GNUInstallDirs)
 
-# ―――――――――――――――― Build the Project ―――――――――――――――― #
-
+# ─── Build the Project ───────────────────────────────────────────────────
 set(EXEC_NAME example)
 
 file(
@@ -39,6 +40,7 @@ target_include_directories(
 target_compile_options(
     ${EXEC_NAME}
     PUBLIC -O3
+           -std=gnu++23
            -Wall
            -Woverloaded-virtual
            -Wno-unused-function
@@ -46,8 +48,7 @@ target_compile_options(
            -Werror
 )
 
-# ―――――――――――――――― Build the tests ―――――――――――――――― #
-
+# ─── Build the tests ─────────────────────────────────────────────────────
 option(
     BUILD_TESTS
     "Build the tests"

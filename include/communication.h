@@ -34,7 +34,7 @@ class Communicator
      * @param handle_response_callback Callback function to handle each response message
      * @return EXECUTE_STATUS The status of the request execution
      */
-    virtual REQUEST_STATUS request(
+    [[nodiscard]] virtual REQUEST_STATUS request(
         const std::vector<std::uint8_t>& message, std::function<void(std::vector<uint8_t>)> handle_response_callback
     ) const = 0;
 
@@ -45,7 +45,7 @@ class Communicator
      * @param[out] responses Vector to store all received response messages
      * @return EXECUTE_STATUS The status of the request execution
      */
-    REQUEST_STATUS
+    [[nodiscard]] REQUEST_STATUS
     request(const std::vector<std::uint8_t>& message, std::vector<std::vector<std::uint8_t>>& responses) const {
         const std::function<void(std::vector<std::uint8_t>)> callback(
             [&responses](const std::vector<std::uint8_t>& raw_response) { responses.push_back(raw_response); }
