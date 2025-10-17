@@ -50,26 +50,26 @@ repos:
       - id: check-case-conflict
 
 # TODO: clang-tidy doesn't support std::generator yet nor std::expected, so we need to wait until it does.
-#  - repo: https://github.com/pocc/pre-commit-hooks
-#    rev: v1.3.5
-#    hooks:
-#      - id: clang-tidy
-#        entry: |-
-#          bash -c '
-#            if [[ -n "$@" ]]; then
-#              for file in "$@"; do
-#                clang-tidy \
-#                  --quiet \
-#                  "$file" \
-#                  -- \
-#                  -Wall \
-#                  -std=c++23 \
-#                  -x c++ \
-#                  -Iinclude \
-#                  -Itests/include \
-#                  -Ibuild/include \
-#                  -Ibuild/_deps/googletest-src/googletest/include \
-#
-#              done
-#            fi
-#          '
+  - repo: https://github.com/pocc/pre-commit-hooks
+    rev: v1.3.5
+    hooks:
+      - id: clang-tidy
+        entry: |-
+          bash -c '
+            if [[ -n "$@" ]]; then
+              for file in "$@"; do
+                clang-tidy \
+                  --quiet \
+                  "$file" \
+                  -- \
+                  -Wall \
+                  -std=c++23 \
+                  -x c++ \
+                  -Iinclude \
+                  -Itests/include \
+                  -Ibuild/include \
+                  -Ibuild/_deps/googletest-src/googletest/include \
+
+              done
+            fi
+          '

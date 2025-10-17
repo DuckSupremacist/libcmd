@@ -1,8 +1,8 @@
 #pragma once
 
 #include "command.h"
-#include <expected>
-#include <functional>
+#include "result.h"
+#include <memory>
 
 /* ―――――――――――――――― Concepts ―――――――――――――――― */
 
@@ -93,12 +93,14 @@ template <CommandLike... Commands> class Handler final
      * @return EXECUTE_STATUS The status of the command execution
      * @throws std::runtime_error if the data is empty or the command ID is unknown
      */
-    [[nodiscard]] static std::expected<void, HandlerExecuteError>
+    [[nodiscard]] static Result<void, HandlerExecuteError>
     execute(const serialized_message_t& data, const Communicator& communicator) noexcept {
         if (data.empty()) {
-            return std::unexpected{HandlerExecuteError{
-                .code = HANDLER_EXECUTE_STATUS::ERROR_EMPTY_MESSAGE, .msg = "Empty message received"
-            }};
+            return unexpected(
+                HandlerExecuteError{
+                    .code = HANDLER_EXECUTE_STATUS::ERROR_EMPTY_MESSAGE, .msg = "Empty message received"
+                }
+            );
         }
         const std::uint8_t id = data.front();
 
@@ -107,26 +109,30 @@ template <CommandLike... Commands> class Handler final
             const bool matched =
                 ((id == command_helpers::cmdId<Commands>() && (Commands{data}.execute(communicator), true)) || ...);
             if (!matched) {
-                return std::unexpected{HandlerExecuteError{
-                    .code = HANDLER_EXECUTE_STATUS::ERROR_ID_NOT_FOUND,
-                    .msg = "Unknown command ID: " + std::to_string(id)
-                }};
+                return unexpected(
+                    HandlerExecuteError{
+                        .code = HANDLER_EXECUTE_STATUS::ERROR_ID_NOT_FOUND,
+                        .msg = "Unknown command ID: " + std::to_string(id)
+                    }
+                );
             }
         }
         catch (const MessageLengthError& e) {
-            return std::unexpected{
+            return unexpected(
                 HandlerExecuteError{.code = HANDLER_EXECUTE_STATUS::ERROR_MESSAGE_LENGTH_ERROR, .msg = e.what()}
-            };
+            );
         }
         catch (const std::exception& e) {
-            return std::unexpected{
+            return unexpected(
                 HandlerExecuteError{.code = HANDLER_EXECUTE_STATUS::ERROR_EXCEPTION_DURING_EXECUTION, .msg = e.what()}
-            };
+            );
         }
         catch (...) {
-            return std::unexpected{HandlerExecuteError{
-                .code = HANDLER_EXECUTE_STATUS::ERROR_EXCEPTION_DURING_EXECUTION, .msg = "Unknown exception"
-            }};
+            return unexpected(
+                HandlerExecuteError{
+                    .code = HANDLER_EXECUTE_STATUS::ERROR_EXCEPTION_DURING_EXECUTION, .msg = "Unknown exception"
+                }
+            );
         }
         return {};
     }

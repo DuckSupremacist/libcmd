@@ -1,7 +1,6 @@
 #include "command.h"
 #include "handler.h"
 #include "message.h"
-#include <cstdint>
 #include <generator>
 #include <iomanip>
 #include <iostream>
@@ -250,7 +249,7 @@ int main() {
     for (const std::vector<std::uint8_t>& data : inputMessage()) {
         const SimpleCommunicator communicator;
         // Execute handler
-        std::expected const result = Handler123::execute(data, communicator);
+        const Result result = Handler123::execute(data, communicator);
 
         // Report status
         if (!result) {
