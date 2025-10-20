@@ -91,7 +91,6 @@ template <CommandLike... Commands> class Handler final
      * @param data Raw byte data containing the command ID and payload
      * @param communicator The Communicator instance to handle responses and requests
      * @return EXECUTE_STATUS The status of the command execution
-     * @throws std::runtime_error if the data is empty or the command ID is unknown
      */
     [[nodiscard]] static Result<void, HandlerExecuteError>
     execute(const serialized_message_t& data, const Communicator& communicator) noexcept {
