@@ -40,6 +40,8 @@ class Communicator
 
     /**
      * @brief Sends a request message and collects all responses into a vector
+     * You'll need to bring this overload into scope with:
+     * using Communicator::request;
      *
      * @param message The request message to send
      * @param[out] responses Vector to store all received response messages
