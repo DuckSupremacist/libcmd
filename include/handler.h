@@ -90,7 +90,7 @@ template <CommandLike... Commands> class Handler final
      * @brief Executes the appropriate command based on incoming data
      * @param data Raw byte data containing the command ID and payload
      * @param communicator The Communicator instance to handle responses and requests
-     * @return EXECUTE_STATUS The status of the command execution
+     * @return Result<void, HandlerExecuteError> The result of the command execution
      */
     [[nodiscard]] static Result<void, HandlerExecuteError>
     execute(const serialized_message_t& data, const Communicator& communicator) noexcept {
