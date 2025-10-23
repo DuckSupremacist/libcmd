@@ -1,27 +1,11 @@
 #include "handler.h"
 #include "command.h"
 #include "message.h"
+#include "test_utils.h"
 #include <cstring>
 #include <gtest/gtest.h>
 #include <type_traits>
 #include <vector>
-
-/* ───────────────────────── Helpers ───────────────────────── */
-
-template <typename T> static std::vector<std::uint8_t> serialize(const T& obj) {
-    static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for byte memcpy");
-    return {reinterpret_cast<const std::uint8_t*>(&obj), reinterpret_cast<const std::uint8_t*>(&obj) + sizeof(T)};
-}
-
-template <typename T> static std::vector<std::uint8_t> serialize(const std::uint8_t id, const T& obj) {
-    static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for byte memcpy");
-    std::vector content{id};
-    content.insert(
-        content.end(), reinterpret_cast<const std::uint8_t*>(&obj),
-        reinterpret_cast<const std::uint8_t*>(&obj) + sizeof(T)
-    );
-    return content;
-}
 
 /* ───────────────────────── Message Formats ───────────────────────── */
 
@@ -115,22 +99,13 @@ class CommandC final : public Command<0x0c, FormatC>
 };
 
 /* ─────────────────── Duplicate-ID Commands ─────────────────── */
-namespace
-{
-struct FormatADuplicate
-{
-    [[maybe_unused]] std::uint8_t dummy;
-    [[maybe_unused]] std::uint16_t v;
-};
-static_assert(std::is_standard_layout_v<FormatADuplicate>);
-static_assert(std::is_trivially_copyable_v<FormatADuplicate>);
 
-class CommandADuplicate final : public Command<0x0a, FormatADuplicate>
+class CommandADuplicate final : public Command<CommandA::ID, FormatA>
 {
   public:
     using ResponseMessage = Message<ID, ResponseFormat>;
+    using Command::Command; // inherit constructors
 
-    explicit CommandADuplicate(const std::vector<std::uint8_t>& raw) : Command(raw) {}
     void execute(const Communicator& communicator) const override {
         ResponseFormat r{};
         r.status = 0;
@@ -138,43 +113,71 @@ class CommandADuplicate final : public Command<0x0a, FormatADuplicate>
         communicator.respond(ResponseMessage(r).serialize());
     }
 };
-} // anonymous namespace
 
 /* ───────────────────────── Concept: CommandLike ───────────────────────── */
+
+// A type that satisfies CommandLike but is not derived from Command should pass.
+class GoodCommandA final
+{
+  public:
+    const std::uint8_t ID = 0x0a;
+    explicit GoodCommandA([[maybe_unused]] const std::vector<std::uint8_t>& raw) {}
+    void execute([[maybe_unused]] const Communicator& communicator) const {}
+};
+
+// A type that does not have an ID should fail.
+class BadIDCommand final
+{
+  public:
+    explicit BadIDCommand([[maybe_unused]] const std::vector<std::uint8_t>& raw) {}
+    void execute([[maybe_unused]] const Communicator& communicator) const {}
+};
+static_assert(!CommandLike<BadIDCommand>, "BadIDCommand should not satisfy CommandLike");
+
+// A type that does not have an execute method should fail.
+class BadExecuteCommand final
+{
+  public:
+    const std::uint8_t ID = 0x0a;
+    explicit BadExecuteCommand([[maybe_unused]] const std::vector<std::uint8_t>& raw) {}
+};
+static_assert(!CommandLike<BadExecuteCommand>, "BadExecuteCommand should not satisfy CommandLike");
+
+// A type that does not have the correct constructor should fail.
+class BadConstructorCommand final
+{
+  public:
+    static constexpr std::uint8_t ID = 0x0a;
+    BadConstructorCommand() = default;
+    void execute([[maybe_unused]] const Communicator& communicator) const {}
+};
 
 TEST(HandlerConcepts, CommandLike) {
     static_assert(CommandLike<CommandA>, "CommandA should satisfy CommandLike");
     static_assert(CommandLike<CommandB>, "CommandB should satisfy CommandLike");
     static_assert(CommandLike<CommandC>, "CommandC should satisfy CommandLike");
+    static_assert(CommandLike<GoodCommandA>, "GoodCommandA should satisfy CommandLike");
 
-    // A type with the right typedefs but not deriving from Command should fail.
-    struct Fake
-    {
-        using input_message_t [[maybe_unused]] = Message<0x0a, FormatA>;
-        using output_message_t [[maybe_unused]] = Message<0x0a, ResponseFormat>;
-        // Not derived from Command<...>
-    };
-    static_assert(!CommandLike<Fake>, "Fake must not satisfy CommandLike");
+    static_assert(!CommandLike<BadIDCommand>, "BadIDCommand should not satisfy CommandLike");
+    static_assert(!CommandLike<BadExecuteCommand>, "BadExecuteCommand should not satisfy CommandLike");
+    static_assert(!CommandLike<BadConstructorCommand>, "BadConstructorCommand should not satisfy CommandLike");
+
     SUCCEED();
 }
 
 /* ───────────────────────── Helpers: CommandId & UniqueIds ───────────────────────── */
 
-TEST(HandlerHelpers, CommandIdExtractsStaticID) {
-    EXPECT_EQ(CommandA::input_message_t::ID, 0x0A);
-    EXPECT_EQ(CommandB::input_message_t::ID, 0x0B);
-    EXPECT_EQ(CommandC::input_message_t::ID, 0x0C);
-}
-
 TEST(Helpers, UniqueIdsDetection) {
     // Distinct IDs => true
-    EXPECT_TRUE((command_helpers::UniqueIds<CommandA, CommandB, CommandC>::value));
+    static_assert(command_helpers::UniqueIds<CommandA, CommandB, CommandC>::value);
 
     // Duplicate IDs => UniqueIds should be false (detected)
-    EXPECT_FALSE((command_helpers::UniqueIds<CommandA, CommandADuplicate>::value));
+    static_assert(!command_helpers::UniqueIds<CommandA, CommandADuplicate>::value);
 
     // Duplicate IDs => UniqueIds should be false (detected) unordered
-    EXPECT_FALSE((command_helpers::UniqueIds<CommandA, CommandB, CommandC, CommandADuplicate>::value));
+    static_assert(!command_helpers::UniqueIds<CommandB, CommandA, CommandC, CommandADuplicate>::value);
+
+    SUCCEED();
 }
 
 /* ───────────────────────── Handler::execute ───────────────────────── */

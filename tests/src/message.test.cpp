@@ -1,25 +1,9 @@
 #include "message.h"
+#include "test_utils.h"
 #include <cstring>
 #include <gtest/gtest.h>
 #include <type_traits>
 #include <vector>
-
-/* ―――――――――――――――― Helpers ―――――――――――――――― */
-
-template <typename T> static std::vector<std::uint8_t> serialize(const T& obj) {
-    static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for byte memcpy");
-    return {reinterpret_cast<const std::uint8_t*>(&obj), reinterpret_cast<const std::uint8_t*>(&obj) + sizeof(T)};
-}
-
-template <typename T> static std::vector<std::uint8_t> serialize(const std::uint8_t id, const T& obj) {
-    static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for byte memcpy");
-    std::vector content{id};
-    content.insert(
-        content.end(), reinterpret_cast<const std::uint8_t*>(&obj),
-        reinterpret_cast<const std::uint8_t*>(&obj) + sizeof(T)
-    );
-    return content;
-}
 
 /* ―――――――――――――――― Formats ―――――――――――――――― */
 
@@ -48,7 +32,7 @@ using GoodMessage = Message<0x01, GoodFormat>;
 class NonTrivialMessage final : public Message<0x03, NonTrivialFormat>
 {
   public:
-    using Message::Message; // keep default/inherited ones if needed
+    using Message::Message; // inherit constructors
 
     explicit NonTrivialMessage(const std::vector<std::uint8_t>& wire)
         : Message(std::in_place, wire) // validates size>=1 and ID, sets _content.id

@@ -1,28 +1,12 @@
 #include "command.h"
 #include "message.h"
+#include "test_utils.h"
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <gtest/gtest.h>
 #include <type_traits>
 #include <vector>
-
-/* ―――――――――――――――― Helpers ―――――――――――――――― */
-
-template <typename T> static std::vector<std::uint8_t> serialize(const T& obj) {
-    static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for byte memcpy");
-    return {reinterpret_cast<const std::uint8_t*>(&obj), reinterpret_cast<const std::uint8_t*>(&obj) + sizeof(T)};
-}
-
-template <typename T> static std::vector<std::uint8_t> serialize(const std::uint8_t id, const T& obj) {
-    static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for byte memcpy");
-    std::vector content{id};
-    content.insert(
-        content.end(), reinterpret_cast<const std::uint8_t*>(&obj),
-        reinterpret_cast<const std::uint8_t*>(&obj) + sizeof(T)
-    );
-    return content;
-}
 
 /* ―――――――――――――――― Formats ―――――――――――――――― */
 
@@ -57,7 +41,7 @@ class EchoPlusOneCommand final : public TestCommandBase
 {
   public:
     using ResponseMessage = Message<ID, RspFormat>;
-    explicit EchoPlusOneCommand(const std::vector<std::uint8_t>& raw) : TestCommandBase(raw) {}
+    using TestCommandBase::TestCommandBase; // inherit constructors
 
     void execute(const Communicator& communicator) const override {
         // Build response payload from input content()
@@ -113,6 +97,22 @@ TEST(CommandConstruction, AcceptsWellFormedRaw) {
     EXPECT_EQ(command.content().param, 0x4455);
 }
 
+TEST(CommandConstruction, AcceptsWellFormedStructure) {
+    CmdFormat cmd{};
+    cmd.opcode = 0x33;
+    cmd.param = 0x4455;
+
+    const EchoPlusOneCommand command{cmd};
+
+    // Upcast checks: public inheritance from ReceivedMessage<CmdFormat>
+    [[maybe_unused]] const Message<EchoPlusOneCommand::ID, CmdFormat>* as_received = &command;
+
+    // The stored content equals the original
+    EXPECT_EQ(serialize(command.content()), serialize(cmd));
+    EXPECT_EQ(command.content().opcode, 0x33);
+    EXPECT_EQ(command.content().param, 0x4455);
+}
+
 TEST(CommandConstruction, ThrowsOnWrongSize) {
     // Too small
     const std::vector<std::uint8_t> bad_small(sizeof(CmdFormat), 0);
@@ -129,8 +129,7 @@ TEST(CommandExecute, ProducesExpectedResponseBytes) {
     cmd.opcode = 0x7A;
     cmd.param = 0x00FF; // 255
 
-    const std::vector<std::uint8_t> raw = serialize(EchoPlusOneCommand::ID, cmd);
-    const EchoPlusOneCommand command{raw};
+    const EchoPlusOneCommand command{cmd};
 
     // Expected response
     RspFormat expected_rsp{};
@@ -155,13 +154,13 @@ TEST(CommandExecute, MultipleInstancesIndependentState) {
     CmdFormat command1{};
     command1.opcode = 0x10;
     command1.param = 0x0001;
-    const EchoPlusOneCommand cmd1{serialize(EchoPlusOneCommand::ID, command1)};
+    const EchoPlusOneCommand cmd1{command1};
 
     // Second instance
     CmdFormat command2{};
     command2.opcode = 0xFE;
     command2.param = 0x00FE;
-    const EchoPlusOneCommand cmd2{serialize(EchoPlusOneCommand::ID, command2)};
+    const EchoPlusOneCommand cmd2{command2};
 
     // Execute both
     TestCommunicator const comm{};

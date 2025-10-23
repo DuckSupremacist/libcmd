@@ -12,13 +12,13 @@
  * @tparam C The type to be checked
  */
 template <typename C> concept CommandLike =
+    // 1) static ID
     requires {
-        // Expose the input message type
-        typename C::input_message_t;
+        { C::ID } -> std::convertible_to<std::uint8_t>;
     } &&
-    // Must be constructible from raw bytes
-    std::constructible_from<C, const std::vector<std::uint8_t>&> &&
-    // Must have execute(const Communicator&) const returning void
+    // 2) constructor from raw bytes (nested requirement)
+    requires { requires std::constructible_from<C, const std::vector<std::uint8_t>&>; } &&
+    // 3) execute(const Communicator&) const -> void (compound requirement)
     requires(const C& c, const Communicator& comm) {
         { c.execute(comm) } -> std::same_as<void>;
     };
@@ -43,7 +43,7 @@ template <CommandLike...> struct UniqueIds : std::true_type
  * @tparam Rest The remaining Command-like types
  */
 template <CommandLike C, CommandLike... Rest> struct UniqueIds<C, Rest...>
-    : std::bool_constant<((C::input_message_t::ID != Rest::input_message_t::ID) && ...) && UniqueIds<Rest...>::value>
+    : std::bool_constant<((C::ID != Rest::ID) && ...) && UniqueIds<Rest...>::value>
 {};
 } // namespace command_helpers
 
@@ -69,6 +69,8 @@ struct HandlerExecuteError
     std::string msg;
 };
 
+using HandlerExecuteResult = Result<void, HandlerExecuteError>;
+
 /**
  * @brief Class that handles execution of commands based on incoming data
  *
@@ -90,9 +92,9 @@ template <std::uint8_t HandlerID, CommandLike... Commands> class Handler final
      * @brief Executes the appropriate command based on incoming data
      * @param data Raw byte data containing the command ID and payload
      * @param communicator The Communicator instance to handle responses and requests
-     * @return Result<void, HandlerExecuteError> The result of the command execution
+     * @return HandlerExecuteResult The result of the command execution
      */
-    [[nodiscard]] static Result<void, HandlerExecuteError>
+    [[nodiscard]] static HandlerExecuteResult
     execute(const std::vector<std::uint8_t>& data, const Communicator& communicator) noexcept {
         if (data.empty()) {
             return unexpected(

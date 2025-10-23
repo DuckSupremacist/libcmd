@@ -65,45 +65,6 @@ template <std::uint8_t MessageID, typename MessageFormatT> class Message
   protected:
     MessageFormatT _content; ///< Structured content of the message
 
-  public:
-    static constexpr std::uint8_t ID = MessageID; ///< ID of the message type
-
-    /** @brief Type alias for the message format */
-    using message_format_t = MessageFormatT;
-
-    virtual ~Message() = default;
-
-    /**
-     * @brief Constructs a Message from structured content
-     *
-     * @param content Structured content of the message
-     */
-    explicit Message(MessageFormatT content) : _content(std::move(content)) {}
-
-    /**
-     * @brief Constructs a Message from raw byte input
-     *
-     * @param content Raw byte content of the message
-     * @throws MessageLengthError if content size is invalid
-     * @throws MessageWrongIdError if content size is invalid
-     */
-    explicit Message(const std::vector<std::uint8_t>& content)
-        requires std::is_trivially_copyable_v<MessageFormatT>
-    {
-        if (content.size() != sizeof(MessageFormatT) + sizeof(ID)) {
-            throw MessageLengthError(
-                "Invalid content size, expected " + std::to_string(sizeof(MessageFormatT) + sizeof(ID)) + ", got " +
-                std::to_string(content.size())
-            );
-        }
-        if (content.at(0) != ID) {
-            throw MessageWrongIdError(
-                "Invalid ID, expected " + std::to_string(ID) + ", got " + std::to_string(content.at(0))
-            );
-        }
-        std::memcpy(&_content, &content[sizeof(ID)], sizeof(MessageFormatT));
-    }
-
     /**
      * @brief Constructs a Message with default content
      * Verifies size and ID.
@@ -134,6 +95,48 @@ template <std::uint8_t MessageID, typename MessageFormatT> class Message
             );
         }
         _content = MessageFormatT{}; // default-initialize all fields
+    }
+
+  public:
+    static constexpr std::uint8_t ID = MessageID; ///< ID of the message type
+
+    /** @brief Type alias for the message format */
+    using message_format_t = MessageFormatT;
+
+    virtual ~Message() = default;
+
+    /** @brief Deleted default constructor to prevent uninitialized messages */
+    Message() = delete; // disable default constructor
+
+    /**
+     * @brief Constructs a Message from structured content
+     *
+     * @param content Structured content of the message
+     */
+    explicit Message(MessageFormatT content) : _content(std::move(content)) {}
+
+    /**
+     * @brief Constructs a Message from raw byte input
+     *
+     * @param content Raw byte content of the message
+     * @throws MessageLengthError if content size is invalid
+     * @throws MessageWrongIdError if content size is invalid
+     */
+    explicit Message(const std::vector<std::uint8_t>& content)
+        requires std::is_trivially_copyable_v<MessageFormatT>
+    {
+        if (content.size() != sizeof(MessageFormatT) + sizeof(ID)) {
+            throw MessageLengthError(
+                "Invalid content size, expected " + std::to_string(sizeof(MessageFormatT) + sizeof(ID)) + ", got " +
+                std::to_string(content.size())
+            );
+        }
+        if (content.at(0) != ID) {
+            throw MessageWrongIdError(
+                "Invalid ID, expected " + std::to_string(ID) + ", got " + std::to_string(content.at(0))
+            );
+        }
+        std::memcpy(&_content, &content[sizeof(ID)], sizeof(MessageFormatT));
     }
 
     /**

@@ -21,19 +21,7 @@ template <std::uint8_t CommandID, typename CommandMessageFormat> class Command
     /** @brief Type alias for the input message type */
     using input_message_t = Base;
 
-    /**
-     * @brief Constructs a Command from raw byte input
-     *
-     * @param content Raw byte content of the command message
-     * @throws std::runtime_error if content size is invalid
-     */
-    explicit Command(const std::vector<std::uint8_t>& content) : Base(content) {}
-
-    /**
-     * @brief Constructs a Command from structured content (useful for internal usage)
-     * @param content Structured content of the command message
-     */
-    explicit Command(const CommandMessageFormat& content) : Base(content) {}
+    using Base::Base; // inherit constructors
 
     /**
      * @brief Executes the command associated with this message

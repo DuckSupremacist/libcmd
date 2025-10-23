@@ -5,12 +5,13 @@
 
 /* ―――――――――――――――― Concepts ―――――――――――――――― */
 
-template <typename H> concept HandlerLike = requires {
-    // Ensure static ID exists and is convertible to uint8_t
-    { H::ID } -> std::convertible_to<std::uint8_t>;
-    // Ensure execute signature exists
-    { H::execute(std::declval<const std::vector<std::uint8_t>&>(), std::declval<const Communicator&>()) };
-};
+template <typename H> concept HandlerLike =
+    requires(const std::vector<std::uint8_t>& data, const Communicator& communicator) {
+        // Ensure static ID exists and is convertible to uint8_t
+        { H::ID } -> std::convertible_to<std::uint8_t>;
+        // Ensure execute signature exists
+        { H::execute(data, communicator) };
+    };
 
 /* ―――――――――――――――― Helpers ―――――――――――――――― */
 
@@ -74,7 +75,7 @@ template <HandlerLike... Handlers> class MetaHandler final
     [[nodiscard]] static Result<void, MetaHandlerExecuteError>
     execute(const std::uint8_t port, const std::vector<std::uint8_t>& data, const Communicator& communicator) noexcept {
         // Short-circuit fold: constructs and execute only the matching Handler
-        Result<void, HandlerExecuteError> out;
+        HandlerExecuteResult out;
         const bool matched = ((port == Handlers::ID && (out = Handlers::execute(data, communicator), true)) || ...);
         if (!matched) {
             return unexpected(
