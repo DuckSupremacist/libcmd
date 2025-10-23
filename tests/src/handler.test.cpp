@@ -69,7 +69,7 @@ static int constructed_c = 0;
 class CommandA final : public Command<0x0a, FormatA>
 {
   public:
-    using ResponseMessage = SentMessage<ID, ResponseFormat>;
+    using ResponseMessage = Message<ID, ResponseFormat>;
 
     explicit CommandA(const std::vector<std::uint8_t>& raw) : Command(raw) { ++constructed_a; } // increment counter
 
@@ -85,7 +85,7 @@ class CommandA final : public Command<0x0a, FormatA>
 class CommandB final : public Command<0x0b, FormatB>
 {
   public:
-    using ResponseMessage = SentMessage<ID, ResponseFormat>;
+    using ResponseMessage = Message<ID, ResponseFormat>;
 
     explicit CommandB(const std::vector<std::uint8_t>& raw) : Command(raw) { ++constructed_b; } // increment counter
 
@@ -101,7 +101,7 @@ class CommandB final : public Command<0x0b, FormatB>
 class CommandC final : public Command<0x0c, FormatC>
 {
   public:
-    using ResponseMessage = SentMessage<ID, ResponseFormat>;
+    using ResponseMessage = Message<ID, ResponseFormat>;
 
     explicit CommandC(const std::vector<std::uint8_t>& raw) : Command(raw) { ++constructed_c; } // increment counter
 
@@ -128,7 +128,7 @@ static_assert(std::is_trivially_copyable_v<FormatADuplicate>);
 class CommandADuplicate final : public Command<0x0a, FormatADuplicate>
 {
   public:
-    using ResponseMessage = SentMessage<ID, ResponseFormat>;
+    using ResponseMessage = Message<ID, ResponseFormat>;
 
     explicit CommandADuplicate(const std::vector<std::uint8_t>& raw) : Command(raw) {}
     void execute(const Communicator& communicator) const override {
@@ -150,8 +150,8 @@ TEST(HandlerConcepts, CommandLike) {
     // A type with the right typedefs but not deriving from Command should fail.
     struct Fake
     {
-        using input_message_t [[maybe_unused]] = ReceivedMessage<0x0a, FormatA>;
-        using output_message_t [[maybe_unused]] = SentMessage<0x0a, ResponseFormat>;
+        using input_message_t [[maybe_unused]] = Message<0x0a, FormatA>;
+        using output_message_t [[maybe_unused]] = Message<0x0a, ResponseFormat>;
         // Not derived from Command<...>
     };
     static_assert(!CommandLike<Fake>, "Fake must not satisfy CommandLike");

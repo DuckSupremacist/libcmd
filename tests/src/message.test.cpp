@@ -43,16 +43,15 @@ static_assert(!std::is_trivially_copyable_v<NonTrivialFormat>);
 
 /* ―――――――――――――――― Concrete Messages for tests ―――――――――――――――― */
 
-using ReceivedGoodMessage = ReceivedMessage<0x01, GoodFormat>;
-using SentGoodMessage = SentMessage<0x02, GoodFormat>;
+using GoodMessage = Message<0x01, GoodFormat>;
 
-class NonTrivialReceived final : public ReceivedMessage<0x03, NonTrivialFormat>
+class NonTrivialMessage final : public Message<0x03, NonTrivialFormat>
 {
   public:
-    using ReceivedMessage::ReceivedMessage; // keep default/inherited ones if needed
+    using Message::Message; // keep default/inherited ones if needed
 
-    explicit NonTrivialReceived(const std::vector<std::uint8_t>& wire)
-        : ReceivedMessage(std::in_place, wire) // validates size>=1 and ID, sets _content.id
+    explicit NonTrivialMessage(const std::vector<std::uint8_t>& wire)
+        : Message(std::in_place, wire) // validates size>=1 and ID, sets _content.id
     {
         if (wire.size() < 3) {
             throw std::runtime_error("Invalid content size for NonTrivialFormat");
@@ -72,17 +71,17 @@ class NonTrivialReceived final : public ReceivedMessage<0x03, NonTrivialFormat>
 
 /* ―――――――――――――――― Runtime tests ―――――――――――――――― */
 
-TEST(SentMessage, SerializeMatchesStructMemory) {
+TEST(Message, SerializeMatchesStructMemory) {
     // Arrange
     GoodFormat payload{};
     payload.a = 0xAB;
     payload.b = 0xCDEF;
 
-    const SentGoodMessage msg{payload};
+    const GoodMessage msg{payload};
 
     // Act
     const std::vector<std::uint8_t> bytes = msg.serialize();
-    const std::vector<std::uint8_t> expected = serialize(SentGoodMessage::ID, payload);
+    const std::vector<std::uint8_t> expected = serialize(GoodMessage::ID, payload);
 
     // Assert
     ASSERT_EQ(bytes.size(), sizeof(GoodFormat) + 1);
@@ -95,15 +94,15 @@ TEST(SentMessage, SerializeMatchesStructMemory) {
     EXPECT_EQ(msg.content().b, 0xCDEF);
 }
 
-TEST(ReceivedMessage, ConstructFromRawBytesRoundTrips) {
+TEST(Message, ConstructFromRawBytesRoundTrips) {
     // Arrange: create raw bytes representing a GoodFormat
     GoodFormat original{};
     original.a = 0x11;
     original.b = 0x2233;
-    const std::vector<std::uint8_t> raw = serialize(ReceivedGoodMessage::ID, original);
+    const std::vector<std::uint8_t> raw = serialize(GoodMessage::ID, original);
 
     // Act
-    const ReceivedGoodMessage msg{raw};
+    const GoodMessage msg{raw};
 
     // Assert: content equals original (byte-for-byte)
     EXPECT_EQ(serialize(msg.content()), serialize(original));
@@ -114,31 +113,31 @@ TEST(ReceivedMessage, ConstructFromRawBytesRoundTrips) {
     EXPECT_EQ(msg.serialize(), raw);
 }
 
-TEST(ReceivedMessage, ThrowsOnWrongSize) {
+TEST(Message, ThrowsOnWrongSize) {
     // Too small
     const std::vector<std::uint8_t> bad_small(sizeof(GoodFormat), 0);
     // Too big
     const std::vector<std::uint8_t> bad_big(sizeof(GoodFormat) + 2, 0);
 
-    EXPECT_THROW(ReceivedGoodMessage{bad_small}, MessageLengthError);
-    EXPECT_THROW(ReceivedGoodMessage{bad_big}, MessageLengthError);
+    EXPECT_THROW(GoodMessage{bad_small}, MessageLengthError);
+    EXPECT_THROW(GoodMessage{bad_big}, MessageLengthError);
 }
 
-TEST(ReceivedMessage, ThrowsOnWrongID) {
+TEST(Message, ThrowsOnWrongID) {
     // Correct size but wrong ID
     GoodFormat payload{};
     payload.a = 0;
     payload.b = 0;
-    const std::vector<std::uint8_t> raw = serialize(ReceivedGoodMessage::ID + 1, payload);
+    const std::vector<std::uint8_t> raw = serialize(GoodMessage::ID + 1, payload);
 
-    EXPECT_THROW(ReceivedGoodMessage{raw}, MessageWrongIdError);
+    EXPECT_THROW(GoodMessage{raw}, MessageWrongIdError);
 }
 
 TEST(NonTrivialMessage, InPlaceCtorParsesLenAndKeepsId) {
     // We won't use serialize() because it would memcpy the non-trivial destructor
-    const std::vector<std::uint8_t> wire{NonTrivialReceived::ID, 0x34, 0x12};
+    const std::vector<std::uint8_t> wire{NonTrivialMessage::ID, 0x34, 0x12};
 
-    const NonTrivialReceived msg{wire};
+    const NonTrivialMessage msg{wire};
     EXPECT_EQ(msg.content().len, 0x1234); // little-endian
 
     // serialize() should mirror construction
@@ -146,28 +145,11 @@ TEST(NonTrivialMessage, InPlaceCtorParsesLenAndKeepsId) {
 }
 
 TEST(NonTrivialMessage, InPlaceCtorRejectsBadId) {
-    const std::vector<std::uint8_t> wire_bad_id{NonTrivialReceived::ID + 1, 0x00, 0x00};
-    EXPECT_THROW(NonTrivialReceived{wire_bad_id}, MessageWrongIdError);
+    const std::vector<std::uint8_t> wire_bad_id{NonTrivialMessage::ID + 1, 0x00, 0x00};
+    EXPECT_THROW(NonTrivialMessage{wire_bad_id}, MessageWrongIdError);
 }
 
 TEST(NonTrivialMessage, InPlaceCtorRejectsTooShort) {
-    const std::vector wire_too_short{NonTrivialReceived::ID}; // only ID, no len
-    EXPECT_THROW(NonTrivialReceived{wire_too_short}, MessageLengthError);
-}
-
-TEST(MessagePolymorphism, BasePointersWork) {
-    // Smoke test: ensure proper inheritance and virtual destructor do not crash
-    GoodFormat payload{};
-    payload.a = 0x55;
-    payload.b = 0xAA55;
-
-    constexpr std::uint8_t ID = 0x04;
-
-    const SentMessage<ID, GoodFormat> sm{payload};
-    const Message<ID, GoodFormat>* base = &sm;
-    const std::vector<std::uint8_t> bytes = base->serialize();
-    ASSERT_EQ(bytes.size(), sizeof(GoodFormat) + 1);
-
-    // The first byte should be the ID by contract
-    EXPECT_EQ(bytes[0], ID);
+    const std::vector wire_too_short{NonTrivialMessage::ID}; // only ID, no len
+    EXPECT_THROW(NonTrivialMessage{wire_too_short}, MessageLengthError);
 }

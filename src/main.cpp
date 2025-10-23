@@ -34,7 +34,7 @@ struct SentMessageFormat
 template <std::uint8_t CommandID> class CommandX final : public Command<CommandID, ReceivedMessageFormat>
 {
     using Base = Command<CommandID, ReceivedMessageFormat>;
-    using ResponseMessage = SentMessage<CommandID, SentMessageFormat>;
+    using ResponseMessage = Message<CommandID, SentMessageFormat>;
 
   public:
     /**
@@ -157,8 +157,8 @@ int main() {
         // Report status
         if (!result) {
             std::cerr << "Error: command execution failed:\n"
-                      << "\t- code:\t" << static_cast<int>(result.error().code) << "\n05\t- msg:\t" << result.error().msg
-                      << std::endl;
+                      << "\t- code:\t" << static_cast<int>(result.error().code) << "\n05\t- msg:\t"
+                      << result.error().msg << std::endl;
         }
         else {
             std::cout << "Command executed successfully." << std::endl;

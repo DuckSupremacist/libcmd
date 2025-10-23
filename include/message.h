@@ -64,6 +64,7 @@ template <std::uint8_t MessageID, typename MessageFormatT> class Message
 {
   protected:
     MessageFormatT _content; ///< Structured content of the message
+
   public:
     static constexpr std::uint8_t ID = MessageID; ///< ID of the message type
 
@@ -71,6 +72,69 @@ template <std::uint8_t MessageID, typename MessageFormatT> class Message
     using message_format_t = MessageFormatT;
 
     virtual ~Message() = default;
+
+    /**
+     * @brief Constructs a Message from structured content
+     *
+     * @param content Structured content of the message
+     */
+    explicit Message(MessageFormatT content) : _content(std::move(content)) {}
+
+    /**
+     * @brief Constructs a Message from raw byte input
+     *
+     * @param content Raw byte content of the message
+     * @throws MessageLengthError if content size is invalid
+     * @throws MessageWrongIdError if content size is invalid
+     */
+    explicit Message(const std::vector<std::uint8_t>& content)
+        requires std::is_trivially_copyable_v<MessageFormatT>
+    {
+        if (content.size() != sizeof(MessageFormatT) + sizeof(ID)) {
+            throw MessageLengthError(
+                "Invalid content size, expected " + std::to_string(sizeof(MessageFormatT) + sizeof(ID)) + ", got " +
+                std::to_string(content.size())
+            );
+        }
+        if (content.at(0) != ID) {
+            throw MessageWrongIdError(
+                "Invalid ID, expected " + std::to_string(ID) + ", got " + std::to_string(content.at(0))
+            );
+        }
+        std::memcpy(&_content, &content[sizeof(ID)], sizeof(MessageFormatT));
+    }
+
+    /**
+     * @brief Constructs a Message with default content
+     * Verifies size and ID.
+     * Initializes the `id` field to MessageFormat::ID.
+     * May be useful for more complex initialization in derived classes.
+     *
+     * Usage:
+     *     class MyMessage : public Message<MyFormat> {
+     *       public:
+     *         MyMessage(const std::vector<std::uint8_t>& content) : Message<MyFormat>(std::in_place, content)
+     *         { ... }
+     *     };
+     *
+     * @param content Raw byte content of the message
+     * @throws MessageLengthError if content size is invalid
+     * @throws MessageWrongIdError if content size is invalid
+     */
+    explicit Message(std::in_place_t, const std::vector<std::uint8_t>& content) {
+        if (content.size() != sizeof(MessageFormatT) + sizeof(ID)) {
+            throw MessageLengthError(
+                "Invalid content size, expected " + std::to_string(sizeof(MessageFormatT) + sizeof(ID)) + ", got " +
+                std::to_string(content.size())
+            );
+        }
+        if (content.at(0) != ID) {
+            throw MessageWrongIdError(
+                "Invalid ID, expected " + std::to_string(ID) + ", got " + std::to_string(content.at(0))
+            );
+        }
+        _content = MessageFormatT{}; // default-initialize all fields
+    }
 
     /**
      * @brief Serializes the message content into a byte vector
@@ -92,105 +156,4 @@ template <std::uint8_t MessageID, typename MessageFormatT> class Message
      * @return const MessageFormat& Reference to the structured content
      */
     [[nodiscard]] const MessageFormatT& content() const { return _content; }
-};
-
-/**
- * @brief Class representing a message that has been received
- *
- * This class inherits from Message and is used to represent messages that are
- * received.
- *
- * @tparam MessageID The ID of the message
- * @tparam MessageFormatT The format of the received message
- */
-template <std::uint8_t MessageID, typename MessageFormatT> class ReceivedMessage
-    : public Message<MessageID, MessageFormatT>
-{
-    using Base = Message<MessageID, MessageFormatT>;
-
-  public:
-    using Base::ID;
-
-    /**
-     * @brief Constructs a Message from raw byte input
-     *
-     * @param content Raw byte content of the message
-     * @throws MessageLengthError if content size is invalid
-     * @throws MessageWrongIdError if content size is invalid
-     */
-    explicit ReceivedMessage(const std::vector<std::uint8_t>& content)
-        requires std::is_trivially_copyable_v<MessageFormatT>
-        : Base() {
-        if (content.size() != sizeof(MessageFormatT) + sizeof(ID)) {
-            throw MessageLengthError(
-                "Invalid content size, expected " + std::to_string(sizeof(MessageFormatT) + sizeof(ID)) + ", got " +
-                std::to_string(content.size())
-            );
-        }
-        if (content.at(0) != ID) {
-            throw MessageWrongIdError(
-                "Invalid ID, expected " + std::to_string(ID) + ", got " + std::to_string(content.at(0))
-            );
-        }
-        std::memcpy(&this->_content, &content[sizeof(ID)], sizeof(MessageFormatT));
-    }
-
-    /**
-     * @brief Constructs a Message with default content
-     * Verifies size and ID.
-     * Initializes the `id` field to MessageFormat::ID.
-     * May be useful for more complex initialization in derived classes.
-     *
-     * Usage:
-     *     class MyMessage : public Message<MyFormat> {
-     *       public:
-     *         MyMessage(const std::vector<std::uint8_t>& content) : Message<MyFormat>(std::in_place, content)
-     *         { ... }
-     *     };
-     *
-     * @param content Raw byte content of the message
-     * @throws MessageLengthError if content size is invalid
-     * @throws MessageWrongIdError if content size is invalid
-     */
-    explicit ReceivedMessage(std::in_place_t, const std::vector<std::uint8_t>& content) : Base() {
-        if (content.size() != sizeof(MessageFormatT) + sizeof(ID)) {
-            throw MessageLengthError(
-                "Invalid content size, expected " + std::to_string(sizeof(MessageFormatT) + sizeof(ID)) + ", got " +
-                std::to_string(content.size())
-            );
-        }
-        if (content.at(0) != ID) {
-            throw MessageWrongIdError(
-                "Invalid ID, expected " + std::to_string(ID) + ", got " + std::to_string(content.at(0))
-            );
-        }
-        this->_content = MessageFormatT{}; // default-initialize all fields
-    }
-};
-
-/**
- * @brief Class representing a message that has been sent
- *
- * This class inherits from Message and is used to represent messages that are
- * sent.
- *
- * @tparam MessageID The ID of the message
- * @tparam MessageFormatT The format of the sent message
- */
-template <std::uint8_t MessageID, typename MessageFormatT> class SentMessage final
-    : public Message<MessageID, MessageFormatT>
-{
-    using Base = Message<MessageID, MessageFormatT>;
-
-  public:
-    /**
-     * @brief Constructs a SentMessage from structured content
-     *
-     * @param content Structured content of the sent message
-     */
-    explicit SentMessage(MessageFormatT content)
-        requires std::is_trivially_copyable_v<MessageFormatT>
-        : Base() {
-        this->_content = std::move(content);
-    }
 };

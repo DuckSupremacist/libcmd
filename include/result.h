@@ -47,9 +47,11 @@ template <typename T, typename E> class Result
      */
     Result(UnexpectT, E e) noexcept : _is_ok(false), _value(std::nullopt), _error(std::move(e)) {}
 
-    Result& operator=(const Result&) {
-        return *this;
-    }
+    /**
+     * @brief Assignment operator
+     * @return *this
+     */
+    Result& operator=(const Result&) { return *this; }
 
     /**
      * @brief Observer
@@ -108,9 +110,11 @@ template <typename E> class Result<void, E>
      */
     Result() : _is_ok(true), _error(std::nullopt) {}
 
-    Result& operator=(const Result&) {
-        return *this;
-    }
+    /**
+     * @brief Assignment operator
+     * @return *this
+     */
+    Result& operator=(const Result&) { return *this; }
 
     /**
      * @brief Observer

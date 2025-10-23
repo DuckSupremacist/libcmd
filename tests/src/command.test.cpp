@@ -56,7 +56,7 @@ using TestCommandBase = Command<0x01, CmdFormat>;
 class EchoPlusOneCommand final : public TestCommandBase
 {
   public:
-    using ResponseMessage = SentMessage<ID, RspFormat>;
+    using ResponseMessage = Message<ID, RspFormat>;
     explicit EchoPlusOneCommand(const std::vector<std::uint8_t>& raw) : TestCommandBase(raw) {}
 
     void execute(const Communicator& communicator) const override {
@@ -105,7 +105,7 @@ TEST(CommandConstruction, AcceptsWellFormedRaw) {
     const EchoPlusOneCommand command{raw};
 
     // Upcast checks: public inheritance from ReceivedMessage<CmdFormat>
-    [[maybe_unused]] const ReceivedMessage<EchoPlusOneCommand::ID, CmdFormat>* as_received = &command;
+    [[maybe_unused]] const Message<EchoPlusOneCommand::ID, CmdFormat>* as_received = &command;
 
     // The stored content equals the original
     EXPECT_EQ(serialize(command.content()), serialize(cmd));
@@ -177,8 +177,8 @@ TEST(CommandExecute, MultipleInstancesIndependentState) {
     r2.status = command2.opcode;
     r2.value = static_cast<std::uint16_t>(command2.param + 1);
 
-    const std::vector<std::uint8_t> e1 = SentMessage<EchoPlusOneCommand::ID, RspFormat>{r1}.serialize();
-    const std::vector<std::uint8_t> e2 = SentMessage<EchoPlusOneCommand::ID, RspFormat>{r2}.serialize();
+    const std::vector<std::uint8_t> e1 = Message<EchoPlusOneCommand::ID, RspFormat>{r1}.serialize();
+    const std::vector<std::uint8_t> e2 = Message<EchoPlusOneCommand::ID, RspFormat>{r2}.serialize();
 
     ASSERT_EQ(comm.responses.size(), 2);
     EXPECT_EQ(comm.responses[0], e1);
