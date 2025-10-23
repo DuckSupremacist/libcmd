@@ -12,11 +12,14 @@
  *
  * @tparam CommandMessageFormat The format of the command message (received)
  */
-template <std::uint8_t CommandID, typename CommandMessageFormat> class Command : public ReceivedMessage<CommandID, CommandMessageFormat>
+template <std::uint8_t CommandID, typename CommandMessageFormat> class Command
+    : public ReceivedMessage<CommandID, CommandMessageFormat>
 {
+    using Base = ReceivedMessage<CommandID, CommandMessageFormat>;
+
   public:
     /** @brief Type alias for the input message type */
-    using input_message_t = ReceivedMessage<CommandID, CommandMessageFormat>;
+    using input_message_t = Base;
 
     /**
      * @brief Constructs a Command from raw byte input
@@ -24,7 +27,7 @@ template <std::uint8_t CommandID, typename CommandMessageFormat> class Command :
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
      */
-    explicit Command(const std::vector<std::uint8_t>& content) : ReceivedMessage<CommandID, CommandMessageFormat>(content) {}
+    explicit Command(const std::vector<std::uint8_t>& content) : Base(content) {}
 
     /**
      * @brief Executes the command associated with this message

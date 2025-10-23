@@ -11,20 +11,16 @@
 
 template <typename T> static std::vector<std::uint8_t> serialize(const T& obj) {
     static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for byte memcpy");
-    return {
-        reinterpret_cast<const std::uint8_t*>(&obj),
-        reinterpret_cast<const std::uint8_t*>(&obj) + sizeof(T)
-        };
+    return {reinterpret_cast<const std::uint8_t*>(&obj), reinterpret_cast<const std::uint8_t*>(&obj) + sizeof(T)};
 }
 
 template <typename T> static std::vector<std::uint8_t> serialize(const std::uint8_t id, const T& obj) {
     static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for byte memcpy");
     std::vector content{id};
     content.insert(
-        content.end(),
-        reinterpret_cast<const std::uint8_t*>(&obj),
+        content.end(), reinterpret_cast<const std::uint8_t*>(&obj),
         reinterpret_cast<const std::uint8_t*>(&obj) + sizeof(T)
-        );
+    );
     return content;
 }
 
@@ -65,7 +61,7 @@ class EchoPlusOneCommand final : public TestCommandBase
 
     void execute(const Communicator& communicator) const override {
         // Build response payload from input content()
-        RspFormat rsp{.status=ID};
+        RspFormat rsp{.status = ID};
         rsp.status = this->content().opcode;
         rsp.value = static_cast<std::uint16_t>(this->content().param + 1);
         communicator.respond(ResponseMessage(rsp).serialize());

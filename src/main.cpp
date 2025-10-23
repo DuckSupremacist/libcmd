@@ -10,74 +10,38 @@
 /**
  * @brief Structure representing the format of a specific received message
  */
-struct ReceivedMessageFormat1
+struct ReceivedMessageFormat
 {
-    std::uint8_t arg;                        ///< Some argument associated with the command
-} __attribute__((packed));
-
-/**
- * @brief Structure representing the format of a specific received message
- */
-struct ReceivedMessageFormat2
-{
-    std::uint8_t arg;                        ///< Some argument associated with the command
-} __attribute__((packed));
-
-/**
- * @brief Structure representing the format of a specific received message
- */
-struct ReceivedMessageFormat3
-{
-    std::uint8_t arg;                        ///< Some argument associated with the command
+    std::uint8_t arg; ///< Some argument associated with the command
 } __attribute__((packed));
 
 /**
  * @brief Structure representing the format of a specific sent message
  */
-struct SentMessageFormat1
+struct SentMessageFormat
 {
-    std::uint8_t status;                                           ///< Status code
-    std::uint32_t value;                                           ///< Some value associated with the command
-} __attribute__((packed));
-
-/**
- * @brief Structure representing the format of a specific sent message
- */
-struct SentMessageFormat2
-{
-    std::uint8_t status;                                           ///< Status code
-    std::uint32_t value;                                           ///< Some value associated with the command
-} __attribute__((packed));
-
-/**
- * @brief Structure representing the format of a specific sent message
- */
-struct SentMessageFormat3
-{
-    std::uint8_t status;                                           ///< Status code
-    std::uint32_t value;                                           ///< Some value associated with the command
+    std::uint8_t status; ///< Status code
+    std::uint8_t value;  ///< Some value associated with the response
 } __attribute__((packed));
 
 /* ―――――――――――――――― Messages format ―――――――――――――――― */
-using ReceivedMessage1 = ReceivedMessage<0x01, ReceivedMessageFormat1>;
-using ReceivedMessage2 = ReceivedMessage<0x02, ReceivedMessageFormat2>;
-using ReceivedMessage3 = ReceivedMessage<0x03, ReceivedMessageFormat3>;
-using SentMessage1 = SentMessage<0x01, SentMessageFormat1>;
-using SentMessage2 = SentMessage<0x02, SentMessageFormat2>;
-using SentMessage3 = SentMessage<0x03, SentMessageFormat3>;
 
 /**
- * @brief Class representing a specific command that can be executed
+ * @brief Base example command class template for commands with different IDs
  */
-struct Command1 final : Command<0x01, ReceivedMessageFormat1>
+template <std::uint8_t CommandID> class CommandX final : public Command<CommandID, ReceivedMessageFormat>
 {
+    using Base = Command<CommandID, ReceivedMessageFormat>;
+    using ResponseMessage = SentMessage<CommandID, SentMessageFormat>;
+
+  public:
     /**
      * @brief Constructs a SpecificCommand from raw byte input
      *
      * @param content Raw byte content of the command message
      * @throws std::runtime_error if content size is invalid
      */
-    explicit Command1(const std::vector<std::uint8_t>& content) : Command(content) {}
+    explicit CommandX(const std::vector<std::uint8_t>& content) : Base(content) {}
 
     /**
      * @brief Executes the command associated with this message
@@ -85,67 +49,17 @@ struct Command1 final : Command<0x01, ReceivedMessageFormat1>
      */
     void execute(const Communicator& communicator) const override {
         // Dummy implementation
-        communicator.respond(SentMessage1({
-                                              .status = 0x00,
-                                              .value = _content.arg * 1U,
-                                          })
+        communicator.respond(ResponseMessage({
+                                                 .status = 0x00,
+                                                 .value = static_cast<std::uint8_t>(this->_content.arg * Base::ID),
+                                             })
                                  .serialize());
     }
 };
 
-/**
- * @brief Class representing a specific command that can be executed
- */
-struct Command2 final : Command<0x02, ReceivedMessageFormat2>
-{
-    /**
-     * @brief Constructs a SpecificCommand from raw byte input
-     *
-     * @param content Raw byte content of the command message
-     * @throws std::runtime_error if content size is invalid
-     */
-    explicit Command2(const std::vector<std::uint8_t>& content) : Command(content) {}
-
-    /**
-     * @brief Executes the command associated with this message
-     * @param communicator The Communicator instance to handle responses and requests
-     */
-    void execute(const Communicator& communicator) const override {
-        // Dummy implementation
-        communicator.respond(SentMessage2({
-                                              .status = 0x00,
-                                              .value = _content.arg * 2U,
-                                          })
-                                 .serialize());
-    }
-};
-
-/**
- * @brief Class representing a specific command that can be executed
- */
-struct Command3 final : Command<0x03, ReceivedMessageFormat3>
-{
-    /**
-     * @brief Constructs a SpecificCommand from raw byte input
-     *
-     * @param content Raw byte content of the command message
-     * @throws std::runtime_error if content size is invalid
-     */
-    explicit Command3(const std::vector<std::uint8_t>& content) : Command(content) {}
-
-    /**
-     * @brief Executes the command associated with this message
-     * @param communicator The Communicator instance to handle responses and requests
-     */
-    void execute(const Communicator& communicator) const override {
-        // Dummy implementation
-        communicator.respond(SentMessage3({
-                                              .status = 0x00,
-                                              .value = _content.arg * 3U,
-                                          })
-                                 .serialize());
-    }
-};
+using Command1 = CommandX<0x01>;
+using Command2 = CommandX<0x02>;
+using Command3 = CommandX<0x03>;
 
 using Handler123 = Handler<0x01, Command1, Command2, Command3>;
 
