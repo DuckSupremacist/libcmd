@@ -1,6 +1,8 @@
 #include "command.h"
 #include "handler.h"
 #include "message.h"
+#include "meta_handler.h"
+
 #include <generator>
 #include <iomanip>
 #include <iostream>
@@ -62,6 +64,8 @@ using Command2 = CommandX<0x02>;
 using Command3 = CommandX<0x03>;
 
 using Handler123 = Handler<0x01, Command1, Command2, Command3>;
+
+using MetaHandlerAll = MetaHandler<Handler123>;
 
 /* ―――――――――――――――― Communicator ―――――――――――――――― */
 /**
@@ -148,12 +152,12 @@ int main() {
     for (const std::vector<std::uint8_t>& data : inputMessage()) {
         const SimpleCommunicator communicator;
         // Execute handler
-        const Result result = Handler123::execute(data, communicator);
+        const Result result = MetaHandlerAll::execute(Handler123::ID, data, communicator);
 
         // Report status
         if (!result) {
             std::cerr << "Error: command execution failed:\n"
-                      << "\t- code:\t" << static_cast<int>(result.error().code) << "\t- msg:\t" << result.error().msg
+                      << "\t- code:\t" << static_cast<int>(result.error().code) << "\n05\t- msg:\t" << result.error().msg
                       << std::endl;
         }
         else {

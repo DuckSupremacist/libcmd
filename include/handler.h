@@ -11,10 +11,18 @@
  * Usage: static_assert(CommandLike<T>);
  * @tparam C The type to be checked
  */
-template <typename C> concept CommandLike = requires(const std::vector<std::uint8_t>& raw, const C& c) {
+template <typename C>
+concept CommandLike =
+    requires {
+    // Expose the input message type
     typename C::input_message_t;
-    requires std::derived_from<C, Command<C::input_message_t::ID, typename C::input_message_t::message_format_t>>;
-};
+    } &&
+    // Must be constructible from raw bytes
+    std::constructible_from<C, const std::vector<std::uint8_t>&> &&
+    // Must have execute(const Communicator&) const returning void
+    requires (const C& c, const Communicator& comm) {
+    { c.execute(comm) } -> std::same_as<void>;
+    };
 
 /**
  * @brief Namespace containing internal helper templates and functions

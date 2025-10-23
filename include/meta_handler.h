@@ -1,0 +1,102 @@
+#pragma once
+
+#include "handler.h"
+#include "result.h"
+
+/* ―――――――――――――――― Concepts ―――――――――――――――― */
+
+template <typename H>
+concept HandlerLike =
+    requires {
+    // Ensure static ID exists and is convertible to uint8_t
+    { H::ID } -> std::convertible_to<std::uint8_t>;
+    // Ensure execute signature exists
+    { H::execute(
+        std::declval<const std::vector<std::uint8_t>&>(),
+        std::declval<const Communicator&>()
+        )
+    };
+    };
+
+/* ―――――――――――――――― Helpers ―――――――――――――――― */
+
+namespace meta_handler_helpers {
+
+template <HandlerLike H>
+consteval std::uint8_t handlerId() { return H::ID; }
+
+template <HandlerLike...>
+struct UniqueIds : std::true_type {};
+
+template <HandlerLike H, HandlerLike... Rest>
+struct UniqueIds<H, Rest...>
+    : std::bool_constant< ((handlerId<H>() != handlerId<Rest>()) && ...) && UniqueIds<Rest...>::value > {};
+
+} // namespace meta_handler_helpers
+
+/* ―――――――――――――――― Classes ―――――――――――――――― */
+/**
+ * @brief Enumeration representing the status of Handler execution
+ */
+enum META_HANDLER_EXECUTE_STATUS : std::uint8_t
+{
+    ERROR_PORT_NOT_FOUND = 1,
+    // ... other status code comes from HANDLER_EXECUTE_STATUS
+};
+/**
+ * @brief Structure representing an error that occurred during Handler execution
+ */
+struct MetaHandlerExecuteError
+{
+    /** @brief The status code of the error */
+    META_HANDLER_EXECUTE_STATUS code;
+    /** @brief A descriptive message about the error */
+    std::string msg;
+};
+
+/**
+ * @brief Class that handles execution of Handlers based on incoming data
+ *
+ * This class takes a variadic list of Handler-like types and provides a static
+ * method to execute the appropriate Handler based on the ID found in the
+ * incoming data. It ensures at compile-time that all Handler IDs are unique.
+ *
+ * @tparam Handlers Variadic list of Handler-like types
+ */
+template <HandlerLike... Handlers> class MetaHandler final
+{
+    static_assert(meta_handler_helpers::UniqueIds<Handlers...>::value, "Duplicate Handler IDs registered in MetaHandler");
+
+  public:
+    /**
+     * @brief Executes the appropriate Handler based on incoming data
+     * @param port The port number associated with the incoming data, serve Handler selection
+     * @param data Raw byte data containing the Handler ID and payload
+     * @param communicator The Communicator instance to handle responses and requests
+     * @return Result<void, MetaHandlerExecuteError> The result of the Handler execution
+     */
+    [[nodiscard]] static Result<void, MetaHandlerExecuteError>
+    execute(const std::uint8_t port, const std::vector<std::uint8_t>& data, const Communicator& communicator) noexcept {
+        // Short-circuit fold: constructs and execute only the matching Handler
+        Result<void, HandlerExecuteError> out;
+        const bool matched =
+            ((port == Handlers::ID && (out = Handlers::execute(data, communicator), true)) || ...);
+        if (!matched) {
+            return unexpected(
+                MetaHandlerExecuteError{
+                    .code = ERROR_PORT_NOT_FOUND,
+                    .msg = "Unknown Handler ID: " + std::to_string(port)
+                }
+            );
+        }
+        if (!out) {
+            return unexpected(
+                MetaHandlerExecuteError{
+                    .code = static_cast<META_HANDLER_EXECUTE_STATUS>(out.error().code),
+                    .msg = out.error().msg
+                }
+            );
+        }
+        return {};
+    }
+};
