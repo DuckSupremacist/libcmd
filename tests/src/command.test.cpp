@@ -9,11 +9,23 @@
 
 /* ―――――――――――――――― Helpers ―――――――――――――――― */
 
-template <typename T> static std::vector<std::uint8_t> toBytes(const T& obj) {
+template <typename T> static std::vector<std::uint8_t> serialize(const T& obj) {
     static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for byte memcpy");
-    std::vector<std::uint8_t> bytes(sizeof(T));
-    std::memcpy(bytes.data(), &obj, sizeof(T));
-    return bytes;
+    return {
+        reinterpret_cast<const std::uint8_t*>(&obj),
+        reinterpret_cast<const std::uint8_t*>(&obj) + sizeof(T)
+        };
+}
+
+template <typename T> static std::vector<std::uint8_t> serialize(const std::uint8_t id, const T& obj) {
+    static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for byte memcpy");
+    std::vector content{id};
+    content.insert(
+        content.end(),
+        reinterpret_cast<const std::uint8_t*>(&obj),
+        reinterpret_cast<const std::uint8_t*>(&obj) + sizeof(T)
+        );
+    return content;
 }
 
 /* ―――――――――――――――― Formats ―――――――――――――――― */
@@ -21,33 +33,24 @@ template <typename T> static std::vector<std::uint8_t> toBytes(const T& obj) {
 // Command (input) format: standard-layout, id first, static constexpr std::uint8_t ID
 struct CmdFormat
 {
-    static constexpr std::uint8_t ID = 0x10;
-    std::uint8_t id; // must be first
     std::uint8_t opcode;
     std::uint16_t param;
 };
 static_assert(std::is_standard_layout_v<CmdFormat>);
 static_assert(std::is_trivially_copyable_v<CmdFormat>);
-static_assert(offsetof(CmdFormat, id) == 0);
-static_assert(MessageFormatT<CmdFormat>);
 
 // Response (output) format
 struct RspFormat
 {
-    static constexpr std::uint8_t ID = 0x90;
-    std::uint8_t id; // must be first
     std::uint8_t status;
     std::uint16_t value;
 };
 static_assert(std::is_standard_layout_v<RspFormat>);
 static_assert(std::is_trivially_copyable_v<RspFormat>);
-static_assert(offsetof(RspFormat, id) == 0);
-static_assert(MessageFormatT<RspFormat>);
 
 /* ―――――――――――――――― Typedefs ―――――――――――――――― */
 
-using TestCommandBase = Command<CmdFormat>;
-using ResponseMessage = SentMessage<RspFormat>;
+using TestCommandBase = Command<0x01, CmdFormat>;
 
 /* ―――――――――――――――― Concrete Command for tests ――――――――――――――――
    This command interprets the input and returns one response frame:
@@ -57,12 +60,12 @@ using ResponseMessage = SentMessage<RspFormat>;
 class EchoPlusOneCommand final : public TestCommandBase
 {
   public:
+    using ResponseMessage = SentMessage<ID, RspFormat>;
     explicit EchoPlusOneCommand(const std::vector<std::uint8_t>& raw) : TestCommandBase(raw) {}
 
     void execute(const Communicator& communicator) const override {
         // Build response payload from input content()
-        RspFormat rsp{};
-        rsp.id = RspFormat::ID;
+        RspFormat rsp{.status=ID};
         rsp.status = this->content().opcode;
         rsp.value = static_cast<std::uint16_t>(this->content().param + 1);
         communicator.respond(ResponseMessage(rsp).serialize());
@@ -99,28 +102,26 @@ TEST(CommandBasics, TypeAliases) {
 
 TEST(CommandConstruction, AcceptsWellFormedRaw) {
     CmdFormat cmd{};
-    cmd.id = CmdFormat::ID;
     cmd.opcode = 0x33;
     cmd.param = 0x4455;
 
-    const std::vector<std::uint8_t> raw = toBytes(cmd);
-    const EchoPlusOneCommand c{raw};
+    const std::vector<std::uint8_t> raw = serialize(EchoPlusOneCommand::ID, cmd);
+    const EchoPlusOneCommand command{raw};
 
     // Upcast checks: public inheritance from ReceivedMessage<CmdFormat>
-    [[maybe_unused]] const ReceivedMessage<CmdFormat>* as_received = &c;
+    [[maybe_unused]] const ReceivedMessage<EchoPlusOneCommand::ID, CmdFormat>* as_received = &command;
 
     // The stored content equals the original
-    EXPECT_EQ(toBytes(c.content()), raw);
-    EXPECT_EQ(c.content().id, CmdFormat::ID);
-    EXPECT_EQ(c.content().opcode, 0x33);
-    EXPECT_EQ(c.content().param, 0x4455);
+    EXPECT_EQ(serialize(command.content()), serialize(cmd));
+    EXPECT_EQ(command.content().opcode, 0x33);
+    EXPECT_EQ(command.content().param, 0x4455);
 }
 
 TEST(CommandConstruction, ThrowsOnWrongSize) {
     // Too small
-    const std::vector<std::uint8_t> bad_small(sizeof(CmdFormat) - 1, 0);
+    const std::vector<std::uint8_t> bad_small(sizeof(CmdFormat), 0);
     // Too big
-    const std::vector<std::uint8_t> bad_big(sizeof(CmdFormat) + 1, 0);
+    const std::vector<std::uint8_t> bad_big(sizeof(CmdFormat) + 2, 0);
 
     EXPECT_THROW(EchoPlusOneCommand{bad_small}, MessageLengthError);
     EXPECT_THROW(EchoPlusOneCommand{bad_big}, MessageLengthError);
@@ -129,25 +130,23 @@ TEST(CommandConstruction, ThrowsOnWrongSize) {
 TEST(CommandExecute, ProducesExpectedResponseBytes) {
     // Arrange input
     CmdFormat cmd{};
-    cmd.id = CmdFormat::ID;
     cmd.opcode = 0x7A;
     cmd.param = 0x00FF; // 255
 
-    const std::vector<std::uint8_t> raw = toBytes(cmd);
-    const EchoPlusOneCommand c{raw};
+    const std::vector<std::uint8_t> raw = serialize(EchoPlusOneCommand::ID, cmd);
+    const EchoPlusOneCommand command{raw};
 
     // Expected response
     RspFormat expected_rsp{};
-    expected_rsp.id = RspFormat::ID;
     expected_rsp.status = cmd.opcode;                               // echo opcode
     expected_rsp.value = static_cast<std::uint16_t>(cmd.param + 1); // +1
 
-    const ResponseMessage out_msg{expected_rsp};
+    const EchoPlusOneCommand::ResponseMessage out_msg{expected_rsp};
     const std::vector<std::uint8_t> expected_bytes = out_msg.serialize();
 
     // Act
     TestCommunicator const comm{};
-    c.execute(comm);
+    command.execute(comm);
 
     // Assert one frame returned
     ASSERT_EQ(comm.responses.size(), static_cast<std::size_t>(1));
@@ -157,18 +156,16 @@ TEST(CommandExecute, ProducesExpectedResponseBytes) {
 
 TEST(CommandExecute, MultipleInstancesIndependentState) {
     // First instance
-    CmdFormat c1{};
-    c1.id = CmdFormat::ID;
-    c1.opcode = 0x10;
-    c1.param = 0x0001;
-    const EchoPlusOneCommand cmd1{toBytes(c1)};
+    CmdFormat command1{};
+    command1.opcode = 0x10;
+    command1.param = 0x0001;
+    const EchoPlusOneCommand cmd1{serialize(EchoPlusOneCommand::ID, command1)};
 
     // Second instance
-    CmdFormat c2{};
-    c2.id = CmdFormat::ID;
-    c2.opcode = 0xFE;
-    c2.param = 0x00FE;
-    const EchoPlusOneCommand cmd2{toBytes(c2)};
+    CmdFormat command2{};
+    command2.opcode = 0xFE;
+    command2.param = 0x00FE;
+    const EchoPlusOneCommand cmd2{serialize(EchoPlusOneCommand::ID, command2)};
 
     // Execute both
     TestCommunicator const comm{};
@@ -177,17 +174,15 @@ TEST(CommandExecute, MultipleInstancesIndependentState) {
 
     // Build expected frames
     RspFormat r1{};
-    r1.id = RspFormat::ID;
-    r1.status = c1.opcode;
-    r1.value = static_cast<std::uint16_t>(c1.param + 1);
+    r1.status = command1.opcode;
+    r1.value = static_cast<std::uint16_t>(command1.param + 1);
 
     RspFormat r2{};
-    r2.id = RspFormat::ID;
-    r2.status = c2.opcode;
-    r2.value = static_cast<std::uint16_t>(c2.param + 1);
+    r2.status = command2.opcode;
+    r2.value = static_cast<std::uint16_t>(command2.param + 1);
 
-    const std::vector<std::uint8_t> e1 = SentMessage{r1}.serialize();
-    const std::vector<std::uint8_t> e2 = SentMessage{r2}.serialize();
+    const std::vector<std::uint8_t> e1 = SentMessage<EchoPlusOneCommand::ID, RspFormat>{r1}.serialize();
+    const std::vector<std::uint8_t> e2 = SentMessage<EchoPlusOneCommand::ID, RspFormat>{r2}.serialize();
 
     ASSERT_EQ(comm.responses.size(), 2);
     EXPECT_EQ(comm.responses[0], e1);

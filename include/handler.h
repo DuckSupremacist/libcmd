@@ -13,7 +13,7 @@
  */
 template <typename C> concept CommandLike = requires(const std::vector<std::uint8_t>& raw, const C& c) {
     typename C::input_message_t;
-    requires std::derived_from<C, Command<typename C::input_message_t::message_format_t>>;
+    requires std::derived_from<C, Command<C::input_message_t::ID, typename C::input_message_t::message_format_t>>;
 };
 
 /**
@@ -21,13 +21,6 @@ template <typename C> concept CommandLike = requires(const std::vector<std::uint
  */
 namespace command_helpers
 {
-/**
- * @brief Retrieves the command ID from a Command-like type at compile-time
- * @tparam C The Command-like type
- * @return std::uint8_t The command ID
- */
-template <CommandLike C> consteval std::uint8_t cmdId() { return C::input_message_t::message_format_t::ID; }
-
 /**
  * @brief Base case for UniqueIds: no types means all IDs are unique
  * @tparam ...
@@ -43,12 +36,9 @@ template <CommandLike...> struct UniqueIds : std::true_type
  * @tparam Rest The remaining Command-like types
  */
 template <CommandLike C, CommandLike... Rest> struct UniqueIds<C, Rest...>
-    : std::bool_constant<((cmdId<C>() != cmdId<Rest>()) && ...) && UniqueIds<Rest...>::value>
+    : std::bool_constant<((C::input_message_t::ID != Rest::input_message_t::ID) && ...) && UniqueIds<Rest...>::value>
 {};
 } // namespace command_helpers
-
-/** @brief Type alias for serialized message array format */
-using serialized_message_array_t = std::vector<serialized_message_t>;
 
 /* ―――――――――――――――― Classes ―――――――――――――――― */
 /**
@@ -96,7 +86,7 @@ template <std::uint8_t HandlerID, CommandLike... Commands> class Handler final
      * @return Result<void, HandlerExecuteError> The result of the command execution
      */
     [[nodiscard]] static Result<void, HandlerExecuteError>
-    execute(const serialized_message_t& data, const Communicator& communicator) noexcept {
+    execute(const std::vector<std::uint8_t>& data, const Communicator& communicator) noexcept {
         if (data.empty()) {
             return unexpected(
                 HandlerExecuteError{
@@ -109,7 +99,7 @@ template <std::uint8_t HandlerID, CommandLike... Commands> class Handler final
         // Short-circuit fold: constructs and execute only the matching command
         try {
             const bool matched =
-                ((id == command_helpers::cmdId<Commands>() && (Commands{data}.execute(communicator), true)) || ...);
+                ((id == Commands::input_message_t::ID && (Commands{data}.execute(communicator), true)) || ...);
             if (!matched) {
                 return unexpected(
                     HandlerExecuteError{

@@ -12,8 +12,6 @@
  */
 struct ReceivedMessageFormat1
 {
-    static constexpr std::uint8_t ID = 0x01; ///< Unique identifier for this message type
-    std::uint8_t id;                         ///< Command identifier
     std::uint8_t arg;                        ///< Some argument associated with the command
 } __attribute__((packed));
 
@@ -22,8 +20,6 @@ struct ReceivedMessageFormat1
  */
 struct ReceivedMessageFormat2
 {
-    static constexpr std::uint8_t ID = 0x02; ///< Unique identifier for this message type
-    std::uint8_t id;                         ///< Command identifier
     std::uint8_t arg;                        ///< Some argument associated with the command
 } __attribute__((packed));
 
@@ -32,8 +28,6 @@ struct ReceivedMessageFormat2
  */
 struct ReceivedMessageFormat3
 {
-    static constexpr std::uint8_t ID = 0x03; ///< Unique identifier for this message type
-    std::uint8_t id;                         ///< Command identifier
     std::uint8_t arg;                        ///< Some argument associated with the command
 } __attribute__((packed));
 
@@ -42,8 +36,6 @@ struct ReceivedMessageFormat3
  */
 struct SentMessageFormat1
 {
-    static constexpr std::uint8_t ID = ReceivedMessageFormat1::ID; ///< Unique identifier for this message type
-    std::uint8_t id;                                               ///< Command identifier
     std::uint8_t status;                                           ///< Status code
     std::uint32_t value;                                           ///< Some value associated with the command
 } __attribute__((packed));
@@ -53,8 +45,6 @@ struct SentMessageFormat1
  */
 struct SentMessageFormat2
 {
-    static constexpr std::uint8_t ID = ReceivedMessageFormat2::ID; ///< Unique identifier for this message type
-    std::uint8_t id;                                               ///< Command identifier
     std::uint8_t status;                                           ///< Status code
     std::uint32_t value;                                           ///< Some value associated with the command
 } __attribute__((packed));
@@ -64,24 +54,22 @@ struct SentMessageFormat2
  */
 struct SentMessageFormat3
 {
-    static constexpr std::uint8_t ID = ReceivedMessageFormat3::ID; ///< Unique identifier for this message type
-    std::uint8_t id;                                               ///< Command identifier
     std::uint8_t status;                                           ///< Status code
     std::uint32_t value;                                           ///< Some value associated with the command
 } __attribute__((packed));
 
 /* ―――――――――――――――― Messages format ―――――――――――――――― */
-using ReceivedMessage1 = ReceivedMessage<ReceivedMessageFormat1>;
-using ReceivedMessage2 = ReceivedMessage<ReceivedMessageFormat2>;
-using ReceivedMessage3 = ReceivedMessage<ReceivedMessageFormat3>;
-using SentMessage1 = SentMessage<SentMessageFormat1>;
-using SentMessage2 = SentMessage<SentMessageFormat2>;
-using SentMessage3 = SentMessage<SentMessageFormat3>;
+using ReceivedMessage1 = ReceivedMessage<0x01, ReceivedMessageFormat1>;
+using ReceivedMessage2 = ReceivedMessage<0x02, ReceivedMessageFormat2>;
+using ReceivedMessage3 = ReceivedMessage<0x03, ReceivedMessageFormat3>;
+using SentMessage1 = SentMessage<0x01, SentMessageFormat1>;
+using SentMessage2 = SentMessage<0x02, SentMessageFormat2>;
+using SentMessage3 = SentMessage<0x03, SentMessageFormat3>;
 
 /**
  * @brief Class representing a specific command that can be executed
  */
-struct Command1 final : Command<ReceivedMessageFormat1>
+struct Command1 final : Command<0x01, ReceivedMessageFormat1>
 {
     /**
      * @brief Constructs a SpecificCommand from raw byte input
@@ -98,7 +86,6 @@ struct Command1 final : Command<ReceivedMessageFormat1>
     void execute(const Communicator& communicator) const override {
         // Dummy implementation
         communicator.respond(SentMessage1({
-                                              .id = this->content().id,
                                               .status = 0x00,
                                               .value = _content.arg * 1U,
                                           })
@@ -109,7 +96,7 @@ struct Command1 final : Command<ReceivedMessageFormat1>
 /**
  * @brief Class representing a specific command that can be executed
  */
-struct Command2 final : Command<ReceivedMessageFormat2>
+struct Command2 final : Command<0x02, ReceivedMessageFormat2>
 {
     /**
      * @brief Constructs a SpecificCommand from raw byte input
@@ -126,7 +113,6 @@ struct Command2 final : Command<ReceivedMessageFormat2>
     void execute(const Communicator& communicator) const override {
         // Dummy implementation
         communicator.respond(SentMessage2({
-                                              .id = this->content().id,
                                               .status = 0x00,
                                               .value = _content.arg * 2U,
                                           })
@@ -137,7 +123,7 @@ struct Command2 final : Command<ReceivedMessageFormat2>
 /**
  * @brief Class representing a specific command that can be executed
  */
-struct Command3 final : Command<ReceivedMessageFormat3>
+struct Command3 final : Command<0x03, ReceivedMessageFormat3>
 {
     /**
      * @brief Constructs a SpecificCommand from raw byte input
@@ -154,7 +140,6 @@ struct Command3 final : Command<ReceivedMessageFormat3>
     void execute(const Communicator& communicator) const override {
         // Dummy implementation
         communicator.respond(SentMessage3({
-                                              .id = this->content().id,
                                               .status = 0x00,
                                               .value = _content.arg * 3U,
                                           })
