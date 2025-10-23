@@ -49,6 +49,8 @@ struct MetaHandlerExecuteError
     std::string msg;
 };
 
+using MetaHandlerExecuteResult = Result<void, MetaHandlerExecuteError>;
+
 /**
  * @brief Class that handles execution of Handlers based on incoming data
  *
@@ -70,9 +72,9 @@ template <HandlerLike... Handlers> class MetaHandler final
      * @param port The port number associated with the incoming data, serve Handler selection
      * @param data Raw byte data containing the Handler ID and payload
      * @param communicator The Communicator instance to handle responses and requests
-     * @return Result<void, MetaHandlerExecuteError> The result of the Handler execution
+     * @return MetaHandlerExecuteResult The result of the Handler execution
      */
-    [[nodiscard]] static Result<void, MetaHandlerExecuteError>
+    [[nodiscard]] static MetaHandlerExecuteResult
     execute(const std::uint8_t port, const std::vector<std::uint8_t>& data, const Communicator& communicator) noexcept {
         // Short-circuit fold: constructs and execute only the matching Handler
         HandlerExecuteResult out;
