@@ -30,26 +30,8 @@ template <HandlerLike H, HandlerLike... Rest> struct UniqueIds<H, Rest...>
 } // namespace meta_handler_helpers
 
 /* ―――――――――――――――― Classes ―――――――――――――――― */
-/**
- * @brief Enumeration representing the status of Handler execution
- */
-enum META_HANDLER_EXECUTE_STATUS : std::uint8_t
-{
-    ERROR_PORT_NOT_FOUND = 1,
-    // ... other status code comes from HANDLER_EXECUTE_STATUS
-};
-/**
- * @brief Structure representing an error that occurred during Handler execution
- */
-struct MetaHandlerExecuteError
-{
-    /** @brief The status code of the error */
-    META_HANDLER_EXECUTE_STATUS code;
-    /** @brief A descriptive message about the error */
-    std::string msg;
-};
 
-using MetaHandlerExecuteResult = Result<void, MetaHandlerExecuteError>;
+using MetaHandlerExecuteResult = Result<void, std::string>;
 
 /**
  * @brief Class that handles execution of Handlers based on incoming data
@@ -80,18 +62,10 @@ template <HandlerLike... Handlers> class MetaHandler final
         HandlerExecuteResult out;
         const bool matched = ((port == Handlers::ID && (out = Handlers::execute(data, communicator), true)) || ...);
         if (!matched) {
-            return unexpected(
-                MetaHandlerExecuteError{
-                    .code = ERROR_PORT_NOT_FOUND, .msg = "Unknown Handler ID: " + std::to_string(port)
-                }
-            );
+            return unexpected("Unknown Handler ID: " + std::to_string(port));
         }
         if (!out) {
-            return unexpected(
-                MetaHandlerExecuteError{
-                    .code = static_cast<META_HANDLER_EXECUTE_STATUS>(out.error().code), .msg = out.error().msg
-                }
-            );
+            return unexpected(out.error());
         }
         return {};
     }

@@ -218,7 +218,7 @@ TEST(HandlerExecute, ThrowsOnEmpty) {
     const TestCommunicator communicator;
     const Result result = TestHandlerABC::execute(empty, communicator);
     ASSERT_FALSE(result);
-    EXPECT_EQ(result.error().code, HANDLER_EXECUTE_STATUS::ERROR_EMPTY_MESSAGE);
+    EXPECT_EQ(result.error(), "Empty message received");
     EXPECT_EQ(communicator.responses.size(), 0);
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
@@ -237,7 +237,7 @@ TEST(HandlerExecute, ThrowsOnUnknownId) {
     const TestCommunicator communicator;
     const Result result = TestHandlerABC::execute(data, communicator);
     ASSERT_FALSE(result);
-    EXPECT_EQ(result.error().code, HANDLER_EXECUTE_STATUS::ERROR_ID_NOT_FOUND);
+    EXPECT_EQ(result.error(), "Unknown command ID: 127");
     EXPECT_EQ(communicator.responses.size(), 0);
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);
@@ -251,13 +251,14 @@ TEST(HandlerExecute, ThrowsOnWrongSize) {
     data.push_back(CommandA::ID);
     data.push_back(0x00);
     data.push_back(0x00);
-    data.push_back(0x00);
-    data.push_back(0x00);
-    data.push_back(0x00); // too long
+    data.push_back(0x00); // too short for FormatA (needs 3 bytes after ID)
     const TestCommunicator communicator;
     const Result result = TestHandlerABC::execute(data, communicator);
     ASSERT_FALSE(result);
-    EXPECT_EQ(result.error().code, HANDLER_EXECUTE_STATUS::ERROR_MESSAGE_LENGTH_ERROR);
+    EXPECT_EQ(
+        result.error(), "Invalid content size, expected " + std::to_string(sizeof(FormatA) + 1) + ", got " +
+                            std::to_string(data.size())
+    );
     EXPECT_EQ(communicator.responses.size(), 0);
     EXPECT_EQ(constructed_a, 0);
     EXPECT_EQ(constructed_b, 0);

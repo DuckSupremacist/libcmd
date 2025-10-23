@@ -10,12 +10,11 @@
  * executing commands. It requires derived classes to implement the execute()
  * method, which returns a response message.
  *
- * @tparam CommandMessageFormat The format of the command message (received)
+ * @tparam MessageFormat The format of the command message (received)
  */
-template <std::uint8_t CommandID, typename CommandMessageFormat> class Command
-    : public Message<CommandID, CommandMessageFormat>
+template <std::uint8_t CommandID, typename MessageFormat> class Command : public Message<CommandID, MessageFormat>
 {
-    using Base = Message<CommandID, CommandMessageFormat>;
+    using Base = Message<CommandID, MessageFormat>;
 
   public:
     /** @brief Type alias for the input message type */

@@ -48,28 +48,8 @@ template <CommandLike C, CommandLike... Rest> struct UniqueIds<C, Rest...>
 } // namespace command_helpers
 
 /* ―――――――――――――――― Classes ―――――――――――――――― */
-/**
- * @brief Enumeration representing the status of command execution
- */
-enum class HANDLER_EXECUTE_STATUS : std::uint8_t
-{
-    ERROR_ID_NOT_FOUND = 1,
-    ERROR_MESSAGE_LENGTH_ERROR = 2,
-    ERROR_EXCEPTION_DURING_EXECUTION = 3,
-    ERROR_EMPTY_MESSAGE = 4,
-};
-/**
- * @brief Structure representing an error that occurred during command execution
- */
-struct HandlerExecuteError
-{
-    /** @brief The status code of the error */
-    HANDLER_EXECUTE_STATUS code;
-    /** @brief A descriptive message about the error */
-    std::string msg;
-};
 
-using HandlerExecuteResult = Result<void, HandlerExecuteError>;
+using HandlerExecuteResult = Result<void, std::string>;
 
 /**
  * @brief Class that handles execution of commands based on incoming data
@@ -97,11 +77,7 @@ template <std::uint8_t HandlerID, CommandLike... Commands> class Handler final
     [[nodiscard]] static HandlerExecuteResult
     execute(const std::vector<std::uint8_t>& data, const Communicator& communicator) noexcept {
         if (data.empty()) {
-            return unexpected(
-                HandlerExecuteError{
-                    .code = HANDLER_EXECUTE_STATUS::ERROR_EMPTY_MESSAGE, .msg = "Empty message received"
-                }
-            );
+            return unexpected(std::string("Empty message received"));
         }
         const std::uint8_t id = data.front();
 
@@ -110,30 +86,17 @@ template <std::uint8_t HandlerID, CommandLike... Commands> class Handler final
             const bool matched =
                 ((id == Commands::input_message_t::ID && (Commands{data}.execute(communicator), true)) || ...);
             if (!matched) {
-                return unexpected(
-                    HandlerExecuteError{
-                        .code = HANDLER_EXECUTE_STATUS::ERROR_ID_NOT_FOUND,
-                        .msg = "Unknown command ID: " + std::to_string(id)
-                    }
-                );
+                return unexpected(std::string("Unknown command ID: " + std::to_string(id)));
             }
         }
         catch (const MessageLengthError& e) {
-            return unexpected(
-                HandlerExecuteError{.code = HANDLER_EXECUTE_STATUS::ERROR_MESSAGE_LENGTH_ERROR, .msg = e.what()}
-            );
+            return unexpected(std::string(e.what()));
         }
         catch (const std::exception& e) {
-            return unexpected(
-                HandlerExecuteError{.code = HANDLER_EXECUTE_STATUS::ERROR_EXCEPTION_DURING_EXECUTION, .msg = e.what()}
-            );
+            return unexpected(std::string(e.what()));
         }
         catch (...) {
-            return unexpected(
-                HandlerExecuteError{
-                    .code = HANDLER_EXECUTE_STATUS::ERROR_EXCEPTION_DURING_EXECUTION, .msg = "Unknown exception"
-                }
-            );
+            return unexpected(std::string("Unknown exception"));
         }
         return {};
     }
