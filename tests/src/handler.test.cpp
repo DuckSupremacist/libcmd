@@ -189,8 +189,8 @@ TEST(Helpers, UniqueIdsDetection) {
 
 /* ───────────────────────── Handler::execute ───────────────────────── */
 
-using TestHandlerABC = Handler<CommandA, CommandB, CommandC>; // A first, B second, C third
-using TestHandlerCBA = Handler<CommandC, CommandB, CommandA>; // Different order to prove it’s order-independent
+using TestHandlerABC = Handler<0x01, CommandA, CommandB, CommandC>; // A first, B second, C third
+using TestHandlerCBA = Handler<0x02, CommandC, CommandB, CommandA>; // Different order to prove it’s order-independent
 
 class TestCommunicator final : public Communicator
 {
@@ -211,6 +211,12 @@ static void resetCounters() {
     constructed_a = 0;
     constructed_b = 0;
     constructed_c = 0;
+}
+
+TEST(HandlerID, IsCorrect) {
+    static_assert(TestHandlerABC::ID == 0x01);
+    static_assert(TestHandlerCBA::ID == 0x02);
+    SUCCEED();
 }
 
 TEST(HandlerExecute, ThrowsOnEmpty) {

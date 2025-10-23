@@ -79,13 +79,16 @@ struct HandlerExecuteError
  * method to execute the appropriate command based on the ID found in the
  * incoming data. It ensures at compile-time that all command IDs are unique.
  *
+ * @tparam HandlerID Unique identifier for this handler
  * @tparam Commands Variadic list of Command-like types
  */
-template <CommandLike... Commands> class Handler final
+template <std::uint8_t HandlerID, CommandLike... Commands> class Handler final
 {
     static_assert(command_helpers::UniqueIds<Commands...>::value, "Duplicate command IDs registered in Handler");
 
   public:
+    static constexpr std::uint8_t ID = HandlerID; ///< Unique identifier for this handler
+
     /**
      * @brief Executes the appropriate command based on incoming data
      * @param data Raw byte data containing the command ID and payload

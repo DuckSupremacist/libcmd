@@ -162,7 +162,7 @@ struct Command3 final : Command<ReceivedMessageFormat3>
     }
 };
 
-using Handler123 = Handler<Command1, Command2, Command3>;
+using Handler123 = Handler<0x01, Command1, Command2, Command3>;
 
 /* ―――――――――――――――― Communicator ―――――――――――――――― */
 /**
