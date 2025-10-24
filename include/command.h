@@ -16,11 +16,14 @@ template <std::uint8_t CommandID, typename MessageFormat> class Command : public
 {
     using Base = Message<CommandID, MessageFormat>;
 
+  protected:
+    using Base::_content;
+
   public:
     /** @brief Type alias for the input message type */
     using input_message_t = Base;
-
     using Base::Base; // inherit constructors
+    using Base::ID;
 
     /**
      * @brief Executes the command associated with this message

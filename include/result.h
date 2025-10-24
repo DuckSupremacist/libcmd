@@ -30,11 +30,24 @@ inline constexpr ExpectT EXPECT{};
  */
 template <typename T, typename E> class Result
 {
-    const bool _is_ok;
-    const std::optional<T> _value;
-    const std::optional<E> _error;
+    // NOTE: must not be const to allow assignment
+    bool _is_ok;
+    std::optional<T> _value;
+    std::optional<E> _error;
 
   public:
+    /**
+     * @brief Defaulted copy assignment operator
+     * @return Reference to this Result
+     */
+    Result& operator=(const Result&) = default;
+
+    /**
+     * @brief Defaulted move assignment operator
+     * @return Reference to this Result
+     */
+    Result& operator=(Result&&) noexcept = default;
+
     /**
      * @brief Constructor for successful result
      * @param v The value
@@ -46,12 +59,6 @@ template <typename T, typename E> class Result
      * @param e The error
      */
     Result(UnexpectT, E e) noexcept : _is_ok(false), _value(std::nullopt), _error(std::move(e)) {}
-
-    /**
-     * @brief Assignment operator
-     * @return *this
-     */
-    Result& operator=(const Result&) { return *this; }
 
     /**
      * @brief Observer
@@ -79,7 +86,7 @@ template <typename T, typename E> class Result
      * @return The error value
      */
     [[nodiscard]] const E& error() const& {
-        assert(!_is_ok && "Accessing value() on an error Result");
+        assert(!_is_ok && "Accessing error() on a success Result");
         return _error.value();
     }
 };
@@ -90,10 +97,23 @@ template <typename T, typename E> class Result
  */
 template <typename E> class Result<void, E>
 {
-    const bool _is_ok;
-    const std::optional<E> _error;
+    // NOTE: must not be const to allow assignment
+    bool _is_ok;
+    std::optional<E> _error;
 
   public:
+    /**
+     * @brief Defaulted copy assignment operator
+     * @return Reference to this Result
+     */
+    Result& operator=(const Result&) = default;
+
+    /**
+     * @brief Defaulted move assignment operator
+     * @return Reference to this Result
+     */
+    Result& operator=(Result&&) noexcept = default;
+
     /**
      * @brief Constructor for successful result
      */
@@ -109,12 +129,6 @@ template <typename E> class Result<void, E>
      * @brief Default constructor for successful void result
      */
     Result() : _is_ok(true), _error(std::nullopt) {}
-
-    /**
-     * @brief Assignment operator
-     * @return *this
-     */
-    Result& operator=(const Result&) { return *this; }
 
     /**
      * @brief Observer
@@ -139,7 +153,7 @@ template <typename E> class Result<void, E>
      * @return The error value
      */
     [[nodiscard]] const E& error() const& {
-        assert(!_is_ok && "Accessing value() on an error Result");
+        assert(!_is_ok && "Accessing error() on a success Result");
         return _error.value();
     }
 };
@@ -151,7 +165,7 @@ template <typename E> class Result<void, E>
  */
 template <typename T, typename E>
 [[nodiscard]] static Result<T, E> expected(T value) noexcept(std::is_nothrow_move_constructible_v<T>) {
-    return Result(EXPECT, std::move(value));
+    return Result<T, E>(EXPECT, std::move(value));
 }
 
 /**
@@ -177,5 +191,5 @@ template <typename E> [[nodiscard]] static Result<void, E> expected() noexcept {
  */
 template <typename E>
 [[nodiscard]] static Result<void, E> unexpected(E error) noexcept(std::is_nothrow_move_constructible_v<E>) {
-    return Result<void, E>(UNEXPECT, error);
+    return Result<void, E>(UNEXPECT, std::move(error));
 }

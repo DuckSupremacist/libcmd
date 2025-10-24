@@ -64,7 +64,7 @@ template <HandlerLike... Handlers> class MetaHandler final
         if (!matched) {
             return unexpected("Unknown Handler ID: " + std::to_string(port));
         }
-        if (!out) {
+        if (!out.ok()) {
             return unexpected(out.error());
         }
         return {};

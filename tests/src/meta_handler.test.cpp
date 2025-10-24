@@ -13,7 +13,7 @@ class DummyCommunicator final : public Communicator
   public:
     void respond(const std::vector<std::uint8_t>& data) const override {
         last_response = data;
-        ++respond_calls;
+        respond_calls++;
     }
 
     REQUEST_STATUS request(
@@ -21,7 +21,7 @@ class DummyCommunicator final : public Communicator
         const std::function<void(std::vector<std::uint8_t>)> handle_response_callback
     ) const override {
         last_request = message;
-        ++request_calls;
+        request_calls++;
         for (const std::vector<std::uint8_t>& responses : scripted_responses)
             handle_response_callback(responses);
         return scripted_status;
@@ -46,7 +46,7 @@ struct OkHandlerA
     static HandlerExecuteResult execute(const std::vector<std::uint8_t>& data, const Communicator& comm) {
         (void)comm;
         _last_data = data;
-        ++_calls;
+        _calls++;
         return {}; // success
     }
 
@@ -61,7 +61,7 @@ struct OkHandlerB
     static HandlerExecuteResult execute(const std::vector<std::uint8_t>& data, const Communicator& comm) {
         (void)comm;
         _last_data = data;
-        ++_calls;
+        _calls++;
         return {}; // success
     }
 
@@ -74,7 +74,7 @@ struct ErrHandler
     inline static int _calls = 0;
 
     static HandlerExecuteResult execute(const std::vector<std::uint8_t>&, const Communicator&) {
-        ++_calls;
+        _calls++;
         return unexpected(std::string("boom"));
     }
 };

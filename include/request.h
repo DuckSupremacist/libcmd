@@ -19,16 +19,20 @@ template <std::uint8_t RequestID, typename MessageFormatT, typename OutputT> cla
 {
     using Base = Message<RequestID, MessageFormatT>;
 
+  protected:
+    using Base::_content;
+
   public:
     /** @brief Type alias for the response type */
     using response_t = OutputT;
-
     using Base::Base; // inherit constructors
+    using Base::ID;
+    using ResultT = Result<response_t, std::string>; ///< Type alias for the result type (OutputT or error string)
 
     /**
      * @brief Processes the request and produces a response
      * @param communicator The Communicator instance to handle responses and requests
      * @return Result containing the response or an error
      */
-    virtual Result<response_t, std::string> process(const Communicator& communicator) const = 0;
+    virtual ResultT process(const Communicator& communicator) const = 0;
 };

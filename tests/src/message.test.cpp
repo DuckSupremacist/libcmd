@@ -117,7 +117,7 @@ TEST(Message, ThrowsOnWrongID) {
     EXPECT_THROW(GoodMessage{raw}, MessageWrongIdError);
 }
 
-TEST(NonTrivialMessage, InPlaceCtorParsesLenAndKeepsId) {
+TEST(NonTrivialMessage, InPlaceConstructorParsesLenAndKeepsId) {
     // We won't use serialize() because it would memcpy the non-trivial destructor
     const std::vector<std::uint8_t> wire{NonTrivialMessage::ID, 0x34, 0x12};
 
@@ -128,12 +128,12 @@ TEST(NonTrivialMessage, InPlaceCtorParsesLenAndKeepsId) {
     EXPECT_EQ(msg.serialize(), wire);
 }
 
-TEST(NonTrivialMessage, InPlaceCtorRejectsBadId) {
+TEST(NonTrivialMessage, InPlaceConstructorRejectsBadId) {
     const std::vector<std::uint8_t> wire_bad_id{NonTrivialMessage::ID + 1, 0x00, 0x00};
     EXPECT_THROW(NonTrivialMessage{wire_bad_id}, MessageWrongIdError);
 }
 
-TEST(NonTrivialMessage, InPlaceCtorRejectsTooShort) {
+TEST(NonTrivialMessage, InPlaceConstructorRejectsTooShort) {
     const std::vector wire_too_short{NonTrivialMessage::ID}; // only ID, no len
     EXPECT_THROW(NonTrivialMessage{wire_too_short}, MessageLengthError);
 }
