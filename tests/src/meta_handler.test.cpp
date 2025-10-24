@@ -75,7 +75,7 @@ struct ErrHandler
 
     static HandlerExecuteResult execute(const std::vector<std::uint8_t>&, const Communicator&) {
         ++_calls;
-        return unexpected(HandlerExecuteError{.code = HANDLER_EXECUTE_STATUS::ERROR_ID_NOT_FOUND, .msg = "boom"});
+        return unexpected(std::string("boom"));
     }
 };
 
@@ -164,9 +164,8 @@ TEST(MetaHandlerExecute, UnknownPortReturnsError) {
 
     const MetaHandlerExecuteResult res = TestMetaHandler::execute(0xFF, payload, comm);
     ASSERT_FALSE(res.ok());
-    EXPECT_EQ(res.error().code, META_HANDLER_EXECUTE_STATUS::ERROR_PORT_NOT_FOUND);
     // message should mention the unknown ID
-    EXPECT_NE(res.error().msg.find("Unknown Handler ID"), std::string::npos);
+    EXPECT_NE(res.error().find("Unknown Handler ID: 255"), std::string::npos);
 }
 
 TEST(MetaHandlerExecute, PropagatesHandlerErrorAsMetaError) {
@@ -182,6 +181,5 @@ TEST(MetaHandlerExecute, PropagatesHandlerErrorAsMetaError) {
     ASSERT_FALSE(res.ok());
     EXPECT_EQ(ErrHandler::_calls, 1);
     // The meta error code should be the cast of the underlying handler error code
-    EXPECT_EQ(res.error().code, static_cast<META_HANDLER_EXECUTE_STATUS>(HANDLER_EXECUTE_STATUS::ERROR_ID_NOT_FOUND));
-    EXPECT_EQ(res.error().msg, "boom");
+    EXPECT_EQ(res.error(), "boom");
 }

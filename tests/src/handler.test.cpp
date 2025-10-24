@@ -256,8 +256,8 @@ TEST(HandlerExecute, ThrowsOnWrongSize) {
     const Result result = TestHandlerABC::execute(data, communicator);
     ASSERT_FALSE(result);
     EXPECT_EQ(
-        result.error(), "Invalid content size, expected " + std::to_string(sizeof(FormatA) + 1) + ", got " +
-                            std::to_string(data.size())
+        result.error(),
+        "Invalid content size, expected " + std::to_string(sizeof(FormatA) + 1) + ", got " + std::to_string(data.size())
     );
     EXPECT_EQ(communicator.responses.size(), 0);
     EXPECT_EQ(constructed_a, 0);

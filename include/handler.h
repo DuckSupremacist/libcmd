@@ -80,7 +80,6 @@ template <std::uint8_t HandlerID, CommandLike... Commands> class Handler final
             return unexpected(std::string("Empty message received"));
         }
         const std::uint8_t id = data.front();
-
         // Short-circuit fold: constructs and execute only the matching command
         try {
             const bool matched =

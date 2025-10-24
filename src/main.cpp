@@ -156,9 +156,7 @@ int main() {
 
         // Report status
         if (!result) {
-            std::cerr << "Error: command execution failed:\n"
-                      << "\t- code:\t" << static_cast<int>(result.error().code) << "\n05\t- msg:\t"
-                      << result.error().msg << std::endl;
+            std::cerr << "Error: command execution failed: " << result.error() << std::endl;
         }
         else {
             std::cout << "Command executed successfully." << std::endl;
